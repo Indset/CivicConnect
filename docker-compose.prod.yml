@@ -1,0 +1,7 @@
+services:
+  server:
+    env_file: .env.production
+    environment:
+      NODE_ENV: production
+      TRUST_PROXY: "true"
+    # No local mongo service — MONGO_URI points to Atlas in .env.production
