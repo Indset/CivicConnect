@@ -1,9 +1,6 @@
 import stream from 'node:stream';
-import { v2 as cloudinary } from 'cloudinary';
 import { configureCloudinary } from '../../../config/cloudinary.js';
 import { ApiError } from '../../../utils/ApiError.js';
-
-configureCloudinary();
 
 const buildUploadOptions = (folder) => ({
   folder,
@@ -15,7 +12,8 @@ const buildUploadOptions = (folder) => ({
 
 const uploadBufferToCloudinary = (buffer, folder, publicId) => {
   return new Promise((resolve, reject) => {
-    const uploadStream = cloudinary.uploader.upload_stream(
+    const configuredCloudinary = configureCloudinary();
+    const uploadStream = configuredCloudinary.uploader.upload_stream(
       {
         ...buildUploadOptions(folder),
         ...(publicId ? { public_id: publicId } : {}),
@@ -55,7 +53,8 @@ export const uploadMultipleImagesToCloudinary = async (files, folder = 'civiccon
 export const deleteImageFromCloudinary = async (publicId) => {
   if (!publicId) return false;
   try {
-    const result = await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
+    const configuredCloudinary = configureCloudinary();
+    const result = await configuredCloudinary.uploader.destroy(publicId, { resource_type: 'image' });
     return result?.result === 'ok' || result?.result === 'not found';
   } catch (error) {
     throw new ApiError(502, 'Image deletion failed', [], { cause: error });

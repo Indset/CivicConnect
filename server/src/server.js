@@ -1,3 +1,6 @@
+import dns from 'node:dns';
+dns.setServers(['8.8.8.8', '8.8.4.4']);
+
 import http from 'node:http';
 import app from './app.js';
 import { connectDatabase, disconnectDatabase } from './config/database.js';
@@ -10,8 +13,10 @@ let isShuttingDown = false;
 const startServer = async () => {
   try {
     await connectDatabase();
-    logger.info(`Database connection established`);
-    server.listen(env.port, () => logger.info(`CivicConnect API listening on port ${env.port} (${env.nodeEnv})`));
+    server.listen(env.port, () => {
+      console.log(`Server running on port ${env.port}`);
+      logger.info(`CivicConnect API listening on port ${env.port} (${env.nodeEnv})`);
+    });
   } catch (error) {
     logger.error('Failed to start the server', { message: error.message, stack: error.stack });
     process.exit(1);

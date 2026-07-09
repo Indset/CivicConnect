@@ -8,7 +8,6 @@ import { ApiError } from './utils/ApiError.js';
 import { errorHandler, notFoundHandler } from './utils/errorHandler.js';
 import logger, { httpLogger } from './utils/logger.js';
 import {
-  authRateLimiter,
   complaintRateLimiter,
   compressResponse,
   preventParameterPollution,

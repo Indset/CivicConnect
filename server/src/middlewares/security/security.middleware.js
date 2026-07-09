@@ -31,7 +31,7 @@ export const secureCookies = (req, res, next) => {
   res.cookie('access_token', req.cookies?.access_token ?? '', {
     httpOnly: true,
     secure: env.isProduction,
-    sameSite: env.isProduction ? 'none' : 'lax',
+    sameSite: env.cookieSameSite,
     maxAge: env.jwtCookieExpiresDays * 24 * 60 * 60 * 1000,
   });
   return next();

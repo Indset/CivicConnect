@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import winston from 'winston';
@@ -6,6 +7,7 @@ import env from '../config/env.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const logDirectory = path.join(__dirname, '../../logs');
+fs.mkdirSync(logDirectory, { recursive: true });
 
 const { combine, timestamp, printf, colorize, errors } = winston.format;
 
