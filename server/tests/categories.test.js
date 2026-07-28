@@ -7,6 +7,7 @@ import { signAccessToken } from '../src/modules/auth/utils/jwt.js';
 
 describe('Category CRUD API', () => {
   let adminToken;
+  let citizenToken;
 
   beforeAll(async () => {
     await connectTestDatabase();
@@ -27,6 +28,13 @@ describe('Category CRUD API', () => {
       role: 'admin',
     });
     adminToken = signAccessToken(admin.id);
+    const citizen = await User.create({
+      fullName: 'Citizen User',
+      email: 'citizen@example.com',
+      phone: '+919444444444',
+      password: 'StrongPass123!',
+    });
+    citizenToken = signAccessToken(citizen.id);
   });
 
   it('creates and updates a category', async () => {
@@ -44,5 +52,25 @@ describe('Category CRUD API', () => {
 
     expect(updateResponse.status).toBe(200);
     expect(updateResponse.body.data.category.description).toBe('Updated description');
+  });
+
+  it('allows authenticated citizens to list active categories only', async () => {
+    await Category.create([
+      { name: 'Roads', isActive: true },
+      { name: 'Archived', isActive: false },
+    ]);
+
+    const response = await requestApp
+      .get('/api/v1/categories')
+      .set('Authorization', `Bearer ${citizenToken}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      success: true,
+      statusCode: 200,
+      message: 'Categories retrieved successfully',
+    });
+    expect(response.body.data.categories).toHaveLength(1);
+    expect(response.body.data.categories[0].name).toBe('Roads');
   });
 });

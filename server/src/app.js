@@ -22,6 +22,7 @@ import complaintRouter from './modules/complaints/routes/complaint.routes.js';
 import adminRouter from './modules/admin/routes/admin.routes.js';
 import uploadRouter from './modules/uploads/routes/upload.routes.js';
 import notificationRouter from './modules/notifications/routes/notification.routes.js';
+import categoryRouter from './modules/categories/routes/category.routes.js';
 import swaggerRouter from './docs/swagger.routes.js';
 
 const app = express();
@@ -62,6 +63,7 @@ app.use('/api/v1/complaints', complaintRateLimiter, complaintRouter);
 app.use('/api/v1/admin', adminRouter);
 app.use('/api/v1/uploads', uploadRouter);
 app.use('/api/v1/notifications', notificationRouter);
+app.use('/api/v1/categories', categoryRouter);
 app.use('/api/docs', swaggerRouter);
 
 app.use(notFoundHandler);
