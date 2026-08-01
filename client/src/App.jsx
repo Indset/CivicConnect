@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { adminApi, authApi, categoriesApi, complaintsApi } from '@/services/api/endpoints';
+import { adminApi, authApi, categoriesApi, complaintsApi, notificationsApi } from '@/services/api/endpoints';
 
 const field =
   'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100';
@@ -232,7 +232,6 @@ function NewComplaint() {
       .catch((err) => setCategoriesError(err.message))
       .finally(() => setCategoriesLoading(false));
   }, []);
-
   const submit = async (event) => {
     event.preventDefault();
     setError('');
@@ -293,10 +292,148 @@ function NewComplaint() {
   );
 }
 
+function ComplaintsList() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+  const [complaints, setComplaints] = useState(null);
+  const [status, setStatus] = useState('');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    setComplaints(null);
+    const params = status ? { status } : {};
+    const fetcher = isAdmin ? adminApi.complaints(params) : complaintsApi.mine(params);
+    fetcher
+      .then((res) => setComplaints(res.data.complaints))
+      .catch((err) => setError(err.message));
+  }, [status, isAdmin]);
+
+  const statusStyles = {
+    pending: 'bg-amber-50 text-amber-700',
+    in_progress: 'bg-blue-50 text-blue-700',
+    resolved: 'bg-emerald-50 text-emerald-700',
+    rejected: 'bg-red-50 text-red-700',
+  };
+
+  return (
+    <Shell>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">
+          {isAdmin ? 'All complaints' : 'Your complaints'}
+        </h1>
+        <select
+          className={field + ' w-auto'}
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+        >
+          <option value="">All statuses</option>
+          <option value="pending">Pending</option>
+          <option value="in_progress">In progress</option>
+          <option value="resolved">Resolved</option>
+          <option value="rejected">Rejected</option>
+        </select>
+      </div>
+      {error && <p className="mt-4 rounded bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+      {!complaints ? (
+        <p className="mt-4">Loading…</p>
+      ) : (
+        <div className="mt-6 rounded-xl bg-white shadow-sm">
+          <ul className="divide-y">
+            {complaints.map((item) => (
+              <li className="flex items-center justify-between p-4" key={item._id}>
+                <div>
+                  <p className="font-medium">{item.title}</p>
+                  <p className="text-sm text-slate-500">{item.location}</p>
+                </div>
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-medium ${statusStyles[item.status] ?? 'bg-slate-100 text-slate-700'}`}
+                >
+                  {item.status.replace('_', ' ')}
+                </span>
+              </li>
+            ))}
+            {!complaints.length && (
+              <li className="p-6 text-center text-slate-500">No complaints found.</li>
+            )}
+          </ul>
+        </div>
+      )}
+    </Shell>
+  );
+}
+
+function Notifications() {
+  const [items, setItems] = useState(null);
+  const [error, setError] = useState('');
+
+  const load = () => {
+    notificationsApi
+      .list()
+      .then((res) => setItems(res.data.notifications))
+      .catch((err) => setError(err.message));
+  };
+
+  useEffect(load, []);
+
+  const markRead = async (id) => {
+    await notificationsApi.markRead(id);
+    load();
+  };
+  const markAllRead = async () => {
+    await notificationsApi.markAllRead();
+    load();
+  };
+  const remove = async (id) => {
+    await notificationsApi.remove(id);
+    load();
+  };
+
+  return (
+    <Shell>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Notifications</h1>
+        <button onClick={markAllRead} className="text-sm text-blue-700">
+          Mark all as read
+        </button>
+      </div>
+      {error && <p className="mt-4 rounded bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+      {!items ? (
+        <p className="mt-4">Loading…</p>
+      ) : (
+        <ul className="mt-6 divide-y rounded-xl bg-white shadow-sm">
+          {items.map((item) => (
+            <li
+              key={item._id}
+              className={`flex items-center justify-between p-4 ${!item.read ? 'bg-blue-50/40' : ''}`}
+            >
+              <p className="text-sm">{item.message}</p>
+              <div className="flex gap-3 text-sm">
+                {!item.read && (
+                  <button onClick={() => markRead(item._id)} className="text-blue-700">
+                    Mark read
+                  </button>
+                )}
+                <button onClick={() => remove(item._id)} className="text-red-700">
+                  Delete
+                </button>
+              </div>
+            </li>
+          ))}
+          {!items.length && (
+            <li className="p-6 text-center text-slate-500">No notifications yet.</li>
+          )}
+        </ul>
+      )}
+    </Shell>
+  );
+}
+
 export default function App({ mode }) {
   if (['login', 'register', 'forgot-password', 'reset-password'].includes(mode))
     return <AuthScreen mode={mode} />;
   if (mode === 'new-complaint') return <NewComplaint />;
+  if (mode === 'complaints') return <ComplaintsList />;
+  if (mode === 'notifications') return <Notifications />;
   if (!mode)
     return (
       <main className="grid min-h-screen place-items-center bg-slate-50 p-6 text-center">
