@@ -79,7 +79,7 @@ describe("AI category suggestions", () => {
     ).toBeNull();
   });
 
-  it("returns an authenticated category suggestion", async () => {
+  it("returns a keyword fallback for an authenticated request when running without the AI provider", async () => {
     const response = await requestApp
       .post("/api/v1/ai/suggest-category")
       .set("Cookie", `access_token=${token}`)
@@ -93,7 +93,7 @@ describe("AI category suggestions", () => {
       categoryId: roads.id,
       categoryName: "Roads",
       confidence: expect.any(Number),
-      reason: expect.any(String),
+      reason: expect.stringContaining("road"),
     });
   });
 

@@ -107,21 +107,43 @@ export const validateAwarenessListQuery = (req, res, next) => {
       new ApiError(422, `Unsupported query parameters: ${unknown.join(", ")}`),
     );
   }
-  const page = Number.parseInt(req.query.page ?? "1", 10);
-  const limit = Number.parseInt(req.query.limit ?? "12", 10);
-  if (!Number.isInteger(page) || page < 1)
+  const parsePositiveInteger = (value, defaultValue, field) => {
+    if (value === undefined) return defaultValue;
+    if (typeof value !== "string" || !/^[1-9]\d*$/.test(value)) {
+      throw new ApiError(422, `${field} must be a positive integer`);
+    }
+    const parsed = Number(value);
+    if (!Number.isSafeInteger(parsed)) {
+      throw new ApiError(422, `${field} must be a positive integer`);
+    }
+    return parsed;
+  };
+  let page;
+  let limit;
+  try {
+    page = parsePositiveInteger(req.query.page, 1, "page");
+    limit = parsePositiveInteger(req.query.limit, 12, "limit");
+  } catch (error) {
+    return next(error);
+  }
+  if (page < 1)
     return next(new ApiError(422, "page must be a positive integer"));
-  if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+  if (limit > 100) {
     return next(new ApiError(422, "limit must be between 1 and 100"));
   }
-  if (req.query.category && !categories.includes(req.query.category)) {
+  if (
+    req.query.category !== undefined &&
+    (typeof req.query.category !== "string" ||
+      !categories.includes(req.query.category))
+  ) {
     return next(
       new ApiError(422, `category must be one of: ${categories.join(", ")}`),
     );
   }
   if (
-    req.query.status &&
-    !["upcoming", "completed"].includes(req.query.status)
+    req.query.status !== undefined &&
+    (typeof req.query.status !== "string" ||
+      !["upcoming", "completed"].includes(req.query.status))
   ) {
     return next(new ApiError(422, "status must be upcoming or completed"));
   }

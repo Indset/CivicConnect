@@ -106,6 +106,15 @@ describe('Admin API', () => {
     expect(await Notification.countDocuments({ complaint: complaint.id })).toBe(0);
   });
 
+  it('validates complaint identifiers on admin routes', async () => {
+    const response = await requestApp
+      .patch('/api/v1/admin/complaints/not-a-complaint/status')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ status: 'in_progress' });
+
+    expect(response.status).toBe(400);
+  });
+
   it('records assignment as a status change and notifies the owner', async () => {
     const complaint = await Complaint.create({
       user: owner.id,

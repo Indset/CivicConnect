@@ -13,18 +13,38 @@ MERN Stack Public Complaint Tracker
 
 ---
 
+## Features
+
+- Cookie-based authentication, profiles, and password reset
+- Complaint reporting and tracking with image uploads, mapped locations, and owner-only edits/deletes
+- Public complaint feed with filters, pagination, and upvotes
+- Admin status transitions with complaint history, in-app notifications, and optional email updates
+- Admin analytics for status, category, trend, resolution time, and upvote metrics
+- Authenticated AI category suggestions with a keyword-matching fallback
+- Awareness tips and community drives with maps, participant limits, and admin content management
+
+---
+
 ## Local Development
 
 ```bash
-# 1. Install root deps (concurrently)
+# 1. Install root, client, and server dependencies
 npm install
+npm install --prefix client
+npm install --prefix server
 
-# 2. Copy env and fill values
+# 2. Create and configure local environment files
 cp .env.example .env
+cp client/.env.example client/.env
 
-# 3. Start both client and server
+# 3. Start the frontend and backend
 npm run dev
 ```
+
+Set `MONGO_URI` and `JWT_SECRET` in the root `.env` before starting the API.
+Cloudinary, SMTP, and Anthropic credentials are optional in development.
+Without them, uploads and email delivery are unavailable, and AI suggestions
+use keyword matching. Configure the relevant services for production.
 
 Or run with Docker (includes local MongoDB):
 
@@ -104,8 +124,14 @@ Complaint photos are stored in Cloudinary using the `CLOUDINARY_*` variables bel
 | `PORT` | `5000` (Render sets this automatically) |
 | `NODE_ENV` | `production` |
 | `TRUST_PROXY` | `true` on Render |
+| `REQUEST_BODY_LIMIT` | Maximum request body size (default `1mb`) |
+| `SHUTDOWN_TIMEOUT_MS` | Graceful shutdown timeout (default `10000`) |
+| `VITE_API_URL` | Client build-time API base URL, e.g. `https://api.example.com/api/v1` |
 
-`SMTP_PASSWORD` and `EMAIL_FROM` remain supported as backward-compatible aliases.
+`SMTP_PASSWORD` and `EMAIL_FROM` remain supported as backward-compatible SMTP
+aliases. The client also accepts the legacy `VITE_API_BASE_URL`; `VITE_API_URL`
+takes precedence. `VITE_API_URL` is a frontend build-time setting, not a server
+environment variable.
 
 > Never commit `.env` or `.env.production` — they are in `.gitignore`.
 

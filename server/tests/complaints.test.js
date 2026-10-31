@@ -11,6 +11,7 @@ import { signAccessToken } from '../src/modules/auth/utils/jwt.js';
 describe('Complaint CRUD API', () => {
   let user;
   let token;
+  let otherUserToken;
   let category;
 
   beforeAll(async () => {
@@ -34,7 +35,17 @@ describe('Complaint CRUD API', () => {
       password: 'StrongPass123!',
     });
     token = signAccessToken(user.id);
-    category = await Category.create({ name: 'Roads', description: 'Road issues' });
+    const otherUser = await User.create({
+      fullName: 'Another Complaint User',
+      email: 'another-complaint@example.com',
+      phone: '+919666666667',
+      password: 'StrongPass123!',
+    });
+    otherUserToken = signAccessToken(otherUser.id);
+    category = await Category.create({
+      name: 'Roads',
+      description: 'Road issues',
+    });
   });
 
   it('creates a complaint', async () => {
@@ -57,12 +68,18 @@ describe('Complaint CRUD API', () => {
   });
 
   it('creates a complaint with structured location while retaining plain-text compatibility', async () => {
-    const response = await requestApp.post('/api/v1/complaints').set('Cookie', `access_token=${token}`).send({
-      category: category.id,
-      title: 'Blocked drainage',
-      description: 'The storm drain is blocked and water is pooling across the road.',
-      location: { address: 'Central Market, Ward 4', coordinates: { lat: 28.6139, lng: 77.209 } },
-    });
+    const response = await requestApp
+      .post('/api/v1/complaints')
+      .set('Cookie', `access_token=${token}`)
+      .send({
+        category: category.id,
+        title: 'Blocked drainage',
+        description: 'The storm drain is blocked and water is pooling across the road.',
+        location: {
+          address: 'Central Market, Ward 4',
+          coordinates: { lat: 28.6139, lng: 77.209 },
+        },
+      });
 
     expect(response.status).toBe(201);
     expect(response.body.data.complaint.location).toEqual({
@@ -82,7 +99,9 @@ describe('Complaint CRUD API', () => {
       .field('priority', 'medium');
 
     expect(response.status).toBe(201);
-    expect(response.body.data.complaint.location).toEqual({ address: 'Central Junction' });
+    expect(response.body.data.complaint.location).toEqual({
+      address: 'Central Junction',
+    });
   });
 
   it('rejects unsupported image types before attempting an upload', async () => {
@@ -182,7 +201,9 @@ describe('Complaint CRUD API', () => {
     });
 
     const response = await requestApp
-      .get(`/api/v1/complaints/public?category=${category.id}&status=submitted&search=pothole&sort=most_upvoted&page=1&limit=1`)
+      .get(
+        `/api/v1/complaints/public?category=${category.id}&status=submitted&search=pothole&sort=most_upvoted&page=1&limit=1`,
+      )
       .set('Cookie', `access_token=${token}`);
 
     expect(response.status).toBe(200);
@@ -201,7 +222,9 @@ describe('Complaint CRUD API', () => {
     });
 
     const nextPage = await requestApp
-      .get(`/api/v1/complaints/public?category=${category.id}&status=submitted&search=pothole&sort=most_upvoted&page=2&limit=1`)
+      .get(
+        `/api/v1/complaints/public?category=${category.id}&status=submitted&search=pothole&sort=most_upvoted&page=2&limit=1`,
+      )
       .set('Cookie', `access_token=${token}`);
     expect(nextPage.status).toBe(200);
     expect(nextPage.body.data.complaints[0]).toMatchObject({
@@ -231,9 +254,18 @@ describe('Complaint CRUD API', () => {
       upvoteCount: 9,
     });
 
-    await requestApp.post(`/api/v1/complaints/${complaint.id}/upvote`).set('Cookie', `access_token=${token}`).expect(200);
-    await requestApp.post(`/api/v1/complaints/${complaint.id}/upvote`).set('Cookie', `access_token=${token}`).expect(200);
-    await requestApp.post(`/api/v1/complaints/${complaint.id}/upvote`).set('Cookie', `access_token=${token}`).expect(200);
+    await requestApp
+      .post(`/api/v1/complaints/${complaint.id}/upvote`)
+      .set('Cookie', `access_token=${token}`)
+      .expect(200);
+    await requestApp
+      .post(`/api/v1/complaints/${complaint.id}/upvote`)
+      .set('Cookie', `access_token=${token}`)
+      .expect(200);
+    await requestApp
+      .post(`/api/v1/complaints/${complaint.id}/upvote`)
+      .set('Cookie', `access_token=${token}`)
+      .expect(200);
 
     const milestoneNotifications = await Notification.find({
       user: user.id,
@@ -259,18 +291,22 @@ describe('Complaint CRUD API', () => {
     expect(listResponse.status).toBe(200);
     expect(listResponse.body.data.complaints).toHaveLength(1);
 
-    const mapResponse = await requestApp
-      .get('/api/v1/complaints/map')
-      .set('Cookie', `access_token=${token}`);
+    const mapResponse = await requestApp.get('/api/v1/complaints/map').set('Cookie', `access_token=${token}`);
     expect(mapResponse.status).toBe(200);
     expect(mapResponse.body.data.complaints[0]).toMatchObject({
       _id: complaint.id,
-      location: { address: 'School Road', coordinates: { lat: 28.6139, lng: 77.209 } },
+      location: {
+        address: 'School Road',
+        coordinates: { lat: 28.6139, lng: 77.209 },
+      },
     });
 
-    const updateResponse = await requestApp.put(`/api/v1/complaints/${complaint.id}`).set('Authorization', `Bearer ${token}`).send({
-      title: 'Pothole issue updated',
-    });
+    const updateResponse = await requestApp
+      .put(`/api/v1/complaints/${complaint.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        title: 'Pothole issue updated',
+      });
 
     expect(updateResponse.status).toBe(200);
     expect(updateResponse.body.data.complaint.title).toBe('Pothole issue updated');
@@ -285,8 +321,32 @@ describe('Complaint CRUD API', () => {
       location: 'Block C',
     });
 
-    const response = await requestApp.delete(`/api/v1/complaints/${complaint.id}`).set('Authorization', `Bearer ${token}`);
+    const response = await requestApp
+      .delete(`/api/v1/complaints/${complaint.id}`)
+      .set('Authorization', `Bearer ${token}`);
     expect(response.status).toBe(200);
     expect(await Complaint.countDocuments()).toBe(0);
+  });
+
+  it("prevents citizens from editing or deleting another user's complaint", async () => {
+    const complaint = await Complaint.create({
+      user: user.id,
+      category: category.id,
+      title: 'Water leakage',
+      description: 'Water leakage near the apartment building is causing issues.',
+      location: 'Block C',
+    });
+
+    const updateResponse = await requestApp
+      .put(`/api/v1/complaints/${complaint.id}`)
+      .set('Authorization', `Bearer ${otherUserToken}`)
+      .send({ title: 'Attempted unauthorized update' });
+    expect(updateResponse.status).toBe(403);
+
+    const deleteResponse = await requestApp
+      .delete(`/api/v1/complaints/${complaint.id}`)
+      .set('Authorization', `Bearer ${otherUserToken}`);
+    expect(deleteResponse.status).toBe(403);
+    expect(await Complaint.exists({ _id: complaint.id })).toBeTruthy();
   });
 });

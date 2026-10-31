@@ -149,6 +149,7 @@ import { validate } from '../../../middlewares/validation/validation.middleware.
 import { assignComplaintSchema, updateComplaintStatusSchema } from '../../../validators/complaint.validators.js';
 import { createCategorySchema, updateCategorySchema } from '../../../validators/category.validators.js';
 import { createNotificationSchema } from '../../../validators/notification.validators.js';
+import { validateComplaintId } from '../../complaints/validators/complaint.validator.js';
 
 const router = Router();
 router.use(authenticate, adminOnly);
@@ -156,10 +157,10 @@ router.use(authenticate, adminOnly);
 router.get('/dashboard', asyncHandler(getDashboard));
 router.get('/analytics', validateAnalyticsRange, asyncHandler(getAnalytics));
 router.get('/complaints', validateAdminComplaintQuery, asyncHandler(listComplaints));
-router.post('/complaints/:id/assign', validate(assignComplaintSchema), asyncHandler(assignComplaint));
-router.patch('/complaints/:id/status', validate(updateComplaintStatusSchema), asyncHandler(changeStatus));
-router.post('/complaints/:id/remarks', validate(createNotificationSchema), asyncHandler(addRemark));
-router.delete('/complaints/:id', asyncHandler(deleteComplaint));
+router.post('/complaints/:id/assign', validateComplaintId, validate(assignComplaintSchema), asyncHandler(assignComplaint));
+router.patch('/complaints/:id/status', validateComplaintId, validate(updateComplaintStatusSchema), asyncHandler(changeStatus));
+router.post('/complaints/:id/remarks', validateComplaintId, validate(createNotificationSchema), asyncHandler(addRemark));
+router.delete('/complaints/:id', validateComplaintId, asyncHandler(deleteComplaint));
 
 router.post('/categories', validate(createCategorySchema), asyncHandler(createCategoryHandler));
 router.get('/categories', asyncHandler(async (_req, res) => {

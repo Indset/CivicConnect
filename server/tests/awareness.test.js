@@ -106,6 +106,11 @@ describe("Awareness API", () => {
     });
     expect(publicResponse.body.data.tips[0].category).toBe("Cleanliness");
 
+    const invalidPage = await requestApp.get(
+      "/api/v1/awareness/tips?page=1invalid",
+    );
+    expect(invalidPage.status).toBe(422);
+
     const forbidden = await requestApp
       .post("/api/v1/awareness/tips")
       .set("Authorization", `Bearer ${citizenToken}`)
