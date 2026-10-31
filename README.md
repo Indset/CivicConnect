@@ -96,6 +96,8 @@ Complaint photos are stored in Cloudinary using the `CLOUDINARY_*` variables bel
 | `SMTP_USER` | SMTP username |
 | `SMTP_PASS` | SMTP password |
 | `MAIL_FROM` | Sender name and address |
+| `ANTHROPIC_API_KEY` | Optional Anthropic API key for category suggestions |
+| `AI_MODEL` | Anthropic model name (defaults to `claude-3-5-haiku-latest`) |
 | `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name |
 | `CLOUDINARY_API_KEY` | Cloudinary API key |
 | `CLOUDINARY_API_SECRET` | Cloudinary API secret |

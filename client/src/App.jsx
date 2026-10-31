@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   adminApi,
+  aiApi,
   authApi,
   categoriesApi,
   complaintsApi,
@@ -308,6 +309,46 @@ function NewComplaint() {
   const [addressLookupLoading, setAddressLookupLoading] = useState(false);
   const [addressLookupError, setAddressLookupError] = useState('');
   const [geolocationError, setGeolocationError] = useState('');
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [category, setCategory] = useState('');
+  const [categorySuggestion, setCategorySuggestion] = useState(null);
+  const [suggestionLoading, setSuggestionLoading] = useState(false);
+  const [suggestionError, setSuggestionError] = useState('');
+
+  useEffect(() => {
+    const trimmedTitle = title.trim();
+    const trimmedDescription = description.trim();
+    if (`${trimmedTitle} ${trimmedDescription}`.trim().length < 15) {
+      setCategorySuggestion(null);
+      setSuggestionError('');
+      setSuggestionLoading(false);
+      return undefined;
+    }
+
+    let active = true;
+    setCategorySuggestion(null);
+    setSuggestionError('');
+    setSuggestionLoading(true);
+    const timeoutId = setTimeout(() => {
+      aiApi
+        .suggestCategory({ title: trimmedTitle, description: trimmedDescription })
+        .then((response) => {
+          if (active) setCategorySuggestion(response.data);
+        })
+        .catch((requestError) => {
+          if (active) setSuggestionError(requestError.message);
+        })
+        .finally(() => {
+          if (active) setSuggestionLoading(false);
+        });
+    }, 800);
+
+    return () => {
+      active = false;
+      clearTimeout(timeoutId);
+    };
+  }, [title, description]);
 
   useEffect(
     () => () => {
@@ -446,7 +487,13 @@ function NewComplaint() {
       No categories available. Please try again later.
     </p>
   ) : (
-    <select className={field} name="category" defaultValue="" required>
+    <select
+      className={field}
+      name="category"
+      onChange={(event) => setCategory(event.target.value)}
+      value={category}
+      required
+    >
       <option value="" disabled>
         Select a category
       </option>
@@ -468,6 +515,8 @@ function NewComplaint() {
           <input
             className={field}
             name="title"
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
             minLength="5"
             maxLength="150"
             placeholder="Issue title"
@@ -476,12 +525,53 @@ function NewComplaint() {
           <textarea
             className={field}
             name="description"
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
             minLength="20"
             maxLength="5000"
             placeholder="Describe the issue"
             rows="6"
             required
           />
+          {suggestionLoading && (
+            <p className="text-sm text-slate-500" role="status">
+              Suggesting a category…
+            </p>
+          )}
+          {suggestionError && (
+            <p className="text-sm text-amber-700" role="status">
+              Category suggestion unavailable: {suggestionError}
+            </p>
+          )}
+          {categorySuggestion && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-blue-200 bg-blue-50 p-3">
+              <p className="text-sm text-blue-900">
+                Suggested category: <strong>{categorySuggestion.categoryName}</strong> (
+                {Math.round(categorySuggestion.confidence * 100)}%)
+                <span className="ml-1 text-blue-800">{categorySuggestion.reason}</span>
+              </p>
+              <div className="flex shrink-0 items-center gap-3">
+                <button
+                  className="text-sm font-semibold text-blue-800 underline"
+                  onClick={() => {
+                    setCategory(categorySuggestion.categoryId);
+                    setCategorySuggestion(null);
+                  }}
+                  type="button"
+                >
+                  Apply
+                </button>
+                <button
+                  aria-label="Dismiss category suggestion"
+                  className="text-sm text-slate-600 hover:text-slate-900"
+                  onClick={() => setCategorySuggestion(null)}
+                  type="button"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
           <section className="space-y-3 rounded-lg border border-slate-200 p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>

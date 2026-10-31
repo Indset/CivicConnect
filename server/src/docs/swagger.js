@@ -24,6 +24,7 @@ const options = {
       { name: 'Notifications', description: 'User notification management' },
       { name: 'Admin', description: 'Administrative operations' },
       { name: 'Uploads', description: 'Image upload management' },
+      { name: 'AI', description: 'AI-assisted complaint categorization' },
     ],
     components: {
       securitySchemes: {

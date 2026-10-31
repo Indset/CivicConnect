@@ -35,6 +35,10 @@ export const categoriesApi = {
   list: () => api.get('/categories'),
 };
 
+export const aiApi = {
+  suggestCategory: (payload) => api.post('/ai/suggest-category', payload),
+};
+
 export const adminApi = {
   dashboard: () => api.get('/admin/dashboard'),
   analytics: (range = '6m') => api.get('/admin/analytics', { params: { range } }),

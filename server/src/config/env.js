@@ -167,5 +167,7 @@ export default Object.freeze({
   cookieSameSite,
   smtp: Object.freeze(smtp),
   cloudinary: Object.freeze(cloudinary),
+  anthropicApiKey: getString('ANTHROPIC_API_KEY'),
+  aiModel: getString('AI_MODEL', 'claude-3-5-haiku-latest'),
   loadedEnvFiles: Object.freeze(loadedEnvFiles),
 });
