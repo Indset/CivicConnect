@@ -5,18 +5,22 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  // true  → hydration in progress (app just loaded, cookie check pending)
-  // false → hydration done, user is either populated or null
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState(null);
 
   const refreshUser = useCallback(async () => {
+    setLoading(true);
+    setAuthError(null);
     try {
       const response = await authApi.me();
       setUser(response.data.user);
       return response.data.user;
-    } catch {
-      // 401 = no valid cookie → unauthenticated, not an error worth surfacing
-      setUser(null);
+    } catch (error) {
+      if (error.statusCode === 401) {
+        setUser(null);
+        return null;
+      }
+      setAuthError(error);
       return null;
     } finally {
       setLoading(false);
@@ -31,29 +35,32 @@ export function AuthProvider({ children }) {
     () => ({
       user,
       loading,
+      authError,
       isAdmin: user?.role === 'admin',
       refreshUser,
       setUser,
       async login(payload) {
         const response = await authApi.login(payload);
         setUser(response.data.user);
+        setAuthError(null);
         return response;
       },
       async register(payload) {
         const response = await authApi.register(payload);
         setUser(response.data.user);
+        setAuthError(null);
         return response;
       },
       async logout() {
         try {
           await authApi.logout();
         } finally {
-          // Always clear local state even if the server call fails
           setUser(null);
+          setAuthError(null);
         }
       },
     }),
-    [user, loading, refreshUser],
+    [user, loading, authError, refreshUser],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

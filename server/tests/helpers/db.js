@@ -8,7 +8,6 @@ const downloadDir = path.join(process.cwd(), '.cache', 'mongodb-binaries');
 const mongoVersion = process.env.MONGOMS_VERSION ?? '7.0.5';
 
 const prepareDownloadDir = async () => {
-  await fs.rm(downloadDir, { recursive: true, force: true });
   await fs.mkdir(downloadDir, { recursive: true });
 };
 

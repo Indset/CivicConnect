@@ -47,6 +47,12 @@ describe('Authentication API', () => {
     expect(response.status).toBe(200);
     expect(response.body.data.token).toBeDefined();
     expect(response.body.data.user.email).toBe('login@example.com');
+    expect(response.headers['set-cookie'][0]).toContain('access_token=');
+
+    const currentUserResponse = await requestApp.get('/api/v1/auth/me').set('Cookie', response.headers['set-cookie'][0].split(';')[0]);
+
+    expect(currentUserResponse.status).toBe(200);
+    expect(currentUserResponse.body.data.user.email).toBe('login@example.com');
   });
 
   it('logs out a signed-in user', async () => {

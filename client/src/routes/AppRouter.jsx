@@ -3,11 +3,22 @@ import App from '@/App';
 import { useAuth } from '@/contexts/AuthContext';
 
 function ProtectedRoute({ children, adminOnly = false }) {
-  const { user, loading } = useAuth();
+  const { user, loading, authError, refreshUser } = useAuth();
   if (loading)
     return (
       <main className="grid min-h-screen place-items-center text-slate-600">
         Loading CivicConnect…
+      </main>
+    );
+  if (authError && !user)
+    return (
+      <main className="grid min-h-screen place-items-center p-6 text-slate-600">
+        <div className="space-y-3 text-center">
+          <p role="alert">Unable to verify your session: {authError.message}</p>
+          <button className="text-blue-700 underline" onClick={refreshUser}>
+            Try again
+          </button>
+        </div>
       </main>
     );
   if (!user) return <Navigate to="/login" replace />;

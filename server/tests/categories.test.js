@@ -46,9 +46,12 @@ describe('Category CRUD API', () => {
     expect(createResponse.status).toBe(201);
     const categoryId = createResponse.body.data.category._id;
 
-    const updateResponse = await requestApp.patch(`/api/v1/admin/categories/${categoryId}`).set('Authorization', `Bearer ${adminToken}`).send({
-      description: 'Updated description',
-    });
+    const updateResponse = await requestApp
+      .patch(`/api/v1/admin/categories/${categoryId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        description: 'Updated description',
+      });
 
     expect(updateResponse.status).toBe(200);
     expect(updateResponse.body.data.category.description).toBe('Updated description');
@@ -60,9 +63,7 @@ describe('Category CRUD API', () => {
       { name: 'Archived', isActive: false },
     ]);
 
-    const response = await requestApp
-      .get('/api/v1/categories')
-      .set('Authorization', `Bearer ${citizenToken}`);
+    const response = await requestApp.get('/api/v1/categories').set('Cookie', `access_token=${citizenToken}`);
 
     expect(response.status).toBe(200);
     expect(response.body).toMatchObject({
