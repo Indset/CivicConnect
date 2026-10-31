@@ -8,3 +8,5 @@ server/coverage/
 server/.cache/
 logs/
 *.log
+# Local JDK
+ /oracleJdk-27/

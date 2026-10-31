@@ -1,9 +1,25 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { MapContainer, Marker, TileLayer } from 'react-leaflet';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { awarenessApi } from '@/services/api/endpoints';
+import Button from '@/components/ui/Button';
+import Card from '@/components/ui/Card';
+import Badge from '@/components/ui/Badge';
+import EmptyState from '@/components/ui/EmptyState';
+import Skeleton from '@/components/ui/Skeleton';
+import Modal from '@/components/ui/Modal';
+import { Input, Select, Textarea } from '@/components/ui/Field';
+import { useToast } from '@/components/ui/Toast';
+import QuoteCard from '@/components/ui/QuoteCard';
 
 const categories = ['Cleanliness', 'Traffic', 'Water', 'Noise', 'Public property'];
+const DriveMap = lazy(() => import('@/components/DriveMap'));
+const tipThemes = {
+  Cleanliness: { badge: 'border-emerald-200 bg-emerald-50 text-emerald-800', stripe: 'bg-emerald-400' },
+  Traffic: { badge: 'border-amber-200 bg-amber-50 text-amber-800', stripe: 'bg-amber-400' },
+  Water: { badge: 'border-sky-200 bg-sky-50 text-sky-800', stripe: 'bg-sky-400' },
+  Noise: { badge: 'border-violet-200 bg-violet-50 text-violet-800', stripe: 'bg-violet-400' },
+  'Public property': { badge: 'border-civic-200 bg-civic-50 text-civic-800', stripe: 'bg-civic-500' },
+};
 const initialTip = { title: '', content: '', category: categories[0], imageUrl: '' };
 const initialDrive = {
   title: '',
@@ -18,84 +34,67 @@ const initialDrive = {
   longitude: '',
   maxParticipants: '',
 };
-const inputClass =
-  'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100';
-
 const formatDate = (date) =>
   new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(date));
 
-function DriveMap({ location }) {
-  const coordinates = location?.coordinates;
-  if (!coordinates) {
-    return (
-      <p className="mt-3 rounded bg-slate-50 p-3 text-sm text-slate-500">
-        Map coordinates are not available.
-      </p>
-    );
-  }
-  const center = [coordinates.lat, coordinates.lng];
-  return (
-    <div className="mt-3 h-44 overflow-hidden rounded-lg">
-      <MapContainer center={center} zoom={14} scrollWheelZoom={false} className="h-full w-full">
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        <Marker position={center} />
-      </MapContainer>
-    </div>
-  );
-}
-
 function TipCard({ tip, admin, onEdit, onDelete }) {
+  const theme = tipThemes[tip.category] ?? tipThemes.Cleanliness;
   return (
-    <article className="overflow-hidden rounded-xl bg-white shadow-sm">
+    <Card as="article" className="group overflow-hidden transition duration-200 hover:-translate-y-1 hover:shadow-float">
+      <div className={`h-1.5 ${theme.stripe}`} />
       {tip.imageUrl && (
-        <img src={tip.imageUrl} alt="" className="h-40 w-full object-cover" loading="lazy" />
+        <img src={tip.imageUrl} alt={`Illustration for ${tip.title}`} className="h-40 w-full object-cover" loading="lazy" />
       )}
       <div className="p-5">
-        <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-800">
+        <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-extrabold ${theme.badge}`}>
           {tip.category}
         </span>
-        <h3 className="mt-3 text-lg font-semibold">{tip.title}</h3>
+        <h3 className="mt-3 font-heading text-lg font-extrabold text-slate-950">{tip.title}</h3>
         <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">{tip.content}</p>
         {admin && (
           <div className="mt-4 flex gap-3 text-sm">
-            <button type="button" className="text-blue-700" onClick={() => onEdit(tip)}>
+            <button type="button" className="font-bold text-civic-700 hover:text-civic-900" onClick={() => onEdit(tip)}>
               Edit
             </button>
-            <button type="button" className="text-red-700" onClick={() => onDelete(tip)}>
+            <button type="button" className="font-bold text-rose-700 hover:text-rose-900" onClick={() => onDelete(tip)}>
               Delete
             </button>
           </div>
         )}
       </div>
-    </article>
+    </Card>
   );
 }
 
 function DriveCard({ drive, admin, busy, onJoin, onEdit, onDelete }) {
+  const date = new Date(drive.date);
+  const day = new Intl.DateTimeFormat(undefined, { day: '2-digit', timeZone: 'UTC' }).format(date);
+  const month = new Intl.DateTimeFormat(undefined, { month: 'short', timeZone: 'UTC' }).format(date);
   return (
-    <article className="rounded-xl bg-white p-5 shadow-sm">
-      {drive.imageUrl && (
-        <img
-          src={drive.imageUrl}
-          alt=""
-          className="mb-4 h-40 w-full rounded-lg object-cover"
-          loading="lazy"
-        />
-      )}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-semibold">{drive.title}</h3>
-          <p className="mt-1 text-sm text-slate-500">
+    <Card as="article" className="overflow-hidden transition duration-200 hover:-translate-y-0.5 hover:shadow-float">
+      <div className="flex gap-4">
+        <div className="flex h-[4.5rem] w-[4.5rem] shrink-0 flex-col items-center justify-center rounded-2xl bg-accent-50 text-accent-700 ring-1 ring-accent-100">
+          <span className="font-heading text-2xl font-extrabold leading-none">{day}</span>
+          <span className="mt-1 text-xs font-extrabold uppercase tracking-wide">{month}</span>
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <h3 className="font-heading text-lg font-extrabold text-slate-950">{drive.title}</h3>
+            <Badge status={drive.status} />
+          </div>
+          <p className="mt-1 text-xs font-medium text-slate-500">
             {formatDate(drive.date)} (UTC) · {drive.startTime}–{drive.endTime} UTC
           </p>
         </div>
-        <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium capitalize text-emerald-800">
-          {drive.status}
-        </span>
       </div>
+      {drive.imageUrl && (
+        <img
+          src={drive.imageUrl}
+          alt={`Photo for ${drive.title}`}
+          className="mt-4 h-40 w-full rounded-xl object-cover"
+          loading="lazy"
+        />
+      )}
       <p className="mt-3 text-sm leading-6 text-slate-600">{drive.description}</p>
       <p className="mt-3 text-sm text-slate-700">
         <span className="font-medium">Location:</span> {drive.location.address}
@@ -107,12 +106,21 @@ function DriveCard({ drive, admin, busy, onJoin, onEdit, onDelete }) {
         <span className="font-medium">Participants:</span> {drive.participantsCount}
         {drive.maxParticipants ? ` / ${drive.maxParticipants}` : ''}
       </p>
-      <DriveMap location={drive.location} />
+      {drive.location?.coordinates ? (
+        <Suspense fallback={<div aria-label="Loading drive map" className="mt-3 h-44 animate-pulse rounded-lg bg-slate-100" role="status" />}>
+          <DriveMap location={drive.location} title={drive.title} />
+        </Suspense>
+      ) : (
+        <p className="mt-3 rounded bg-slate-50 p-3 text-sm text-slate-600">
+          Map coordinates are not available.
+        </p>
+      )}
       <div className="mt-4 flex flex-wrap items-center gap-3">
         {drive.status === 'upcoming' && (
-          <button
+          <Button
             type="button"
-            className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            variant={drive.hasJoined ? 'secondary' : 'primary'}
+            className="min-h-10 px-4 py-2 text-xs"
             disabled={
               busy ||
               (!drive.hasJoined &&
@@ -128,51 +136,48 @@ function DriveCard({ drive, admin, busy, onJoin, onEdit, onDelete }) {
                 : drive.maxParticipants && drive.participantsCount >= drive.maxParticipants
                   ? 'Drive full'
                   : 'Join drive'}
-          </button>
+          </Button>
         )}
         {admin && (
           <>
-            <button type="button" className="text-sm text-blue-700" onClick={() => onEdit(drive)}>
+            <button type="button" className="text-sm font-bold text-civic-700" onClick={() => onEdit(drive)}>
               Edit
             </button>
-            <button type="button" className="text-sm text-red-700" onClick={() => onDelete(drive)}>
+            <button type="button" className="text-sm font-bold text-rose-700" onClick={() => onDelete(drive)}>
               Delete
             </button>
           </>
         )}
       </div>
-    </article>
+    </Card>
   );
 }
 
 function TipEditor({ value, onChange, onSubmit, onCancel, saving }) {
   return (
-    <form className="space-y-3 rounded-xl border border-slate-200 bg-white p-5" onSubmit={onSubmit}>
-      <h3 className="font-semibold">{value._id ? 'Edit tip' : 'Create tip'}</h3>
-      <input
-        className={inputClass}
-        aria-label="Tip title"
-        placeholder="Title"
+    <Card as="form" className="space-y-4 p-5 sm:p-6" onSubmit={onSubmit}>
+      <h3 className="font-heading text-lg font-extrabold">{value._id ? 'Edit tip' : 'Create tip'}</h3>
+      <Input
+        label="Tip title"
+        placeholder="A short, practical reminder"
         value={value.title}
         required
         minLength={5}
         maxLength={150}
         onChange={(event) => onChange({ ...value, title: event.target.value })}
       />
-      <select
-        className={inputClass}
-        aria-label="Tip category"
+      <Select
+        label="Category"
         value={value.category}
         onChange={(event) => onChange({ ...value, category: event.target.value })}
       >
         {categories.map((category) => (
           <option key={category}>{category}</option>
         ))}
-      </select>
-      <textarea
-        className={inputClass}
-        aria-label="Tip content"
-        placeholder="Content"
+      </Select>
+      <Textarea
+        label="Tip content"
+        placeholder="Share a helpful action neighbors can take…"
         value={value.content}
         required
         minLength={20}
@@ -180,59 +185,52 @@ function TipEditor({ value, onChange, onSubmit, onCancel, saving }) {
         rows={4}
         onChange={(event) => onChange({ ...value, content: event.target.value })}
       />
-      <input
-        className={inputClass}
-        aria-label="Tip image URL"
+      <Input
+        label="Image URL (optional)"
         type="url"
-        placeholder="Image URL (optional)"
+        placeholder="https://"
         value={value.imageUrl}
         onChange={(event) => onChange({ ...value, imageUrl: event.target.value })}
       />
       <EditorActions onCancel={onCancel} saving={saving} />
-    </form>
+    </Card>
   );
 }
 
 function DriveEditor({ value, onChange, onSubmit, onCancel, saving }) {
   const field = (key, label, props = {}) => (
-    <label className="block space-y-1 text-sm">
-      <span>{label}</span>
-      <input
-        className={inputClass}
-        aria-label={label}
-        value={value[key]}
-        required={props.required}
-        min={props.min}
-        max={props.max}
-        type={props.type ?? 'text'}
-        onChange={(event) => onChange({ ...value, [key]: event.target.value })}
-      />
-    </label>
+    <Input
+      label={label}
+      value={value[key]}
+      required={props.required}
+      min={props.min}
+      max={props.max}
+      minLength={props.minLength}
+      maxLength={props.maxLength}
+      type={props.type ?? 'text'}
+      onChange={(event) => onChange({ ...value, [key]: event.target.value })}
+    />
   );
   return (
-    <form className="space-y-3 rounded-xl border border-slate-200 bg-white p-5" onSubmit={onSubmit}>
-      <h3 className="font-semibold">{value._id ? 'Edit drive' : 'Create drive'}</h3>
-      {field('title', 'Title', { required: true })}
-      <label className="block space-y-1 text-sm">
-        <span>Description</span>
-        <textarea
-          className={inputClass}
-          aria-label="Drive description"
-          value={value.description}
-          required
-          minLength={20}
-          maxLength={5000}
-          rows={3}
-          onChange={(event) => onChange({ ...value, description: event.target.value })}
-        />
-      </label>
-      {field('address', 'Address', { required: true })}
+    <Card as="form" className="space-y-4 p-5 sm:p-6" onSubmit={onSubmit}>
+      <h3 className="font-heading text-lg font-extrabold">{value._id ? 'Edit drive' : 'Create drive'}</h3>
+      {field('title', 'Title', { required: true, minLength: 5, maxLength: 150 })}
+      <Textarea
+        label="Description"
+        value={value.description}
+        required
+        minLength={20}
+        maxLength={5000}
+        rows={3}
+        onChange={(event) => onChange({ ...value, description: event.target.value })}
+      />
+      {field('address', 'Address', { required: true, minLength: 3, maxLength: 500 })}
       {field('date', 'Date', { type: 'date', required: true })}
       <div className="grid grid-cols-2 gap-3">
         {field('startTime', 'Start time (UTC)', { type: 'time', required: true })}
         {field('endTime', 'End time (UTC)', { type: 'time', required: true })}
       </div>
-      {field('organizer', 'Organizer', { required: true })}
+      {field('organizer', 'Organizer', { required: true, minLength: 2, maxLength: 150 })}
       {field('imageUrl', 'Image URL', { type: 'url' })}
       <div className="grid grid-cols-2 gap-3">
         {field('latitude', 'Latitude', { type: 'number', min: -90, max: 90 })}
@@ -240,28 +238,24 @@ function DriveEditor({ value, onChange, onSubmit, onCancel, saving }) {
       </div>
       {field('maxParticipants', 'Maximum participants (optional)', { type: 'number', min: 1 })}
       <EditorActions onCancel={onCancel} saving={saving} />
-    </form>
+    </Card>
   );
 }
 
 function EditorActions({ onCancel, saving }) {
   return (
-    <div className="flex gap-3">
-      <button
-        className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-        disabled={saving}
-      >
-        {saving ? 'Saving…' : 'Save'}
-      </button>
-      <button type="button" className="text-sm text-slate-600" onClick={onCancel}>
+    <div className="flex flex-wrap gap-3">
+      <Button loading={saving}>{saving ? 'Saving…' : 'Save changes'}</Button>
+      <Button type="button" variant="ghost" onClick={onCancel}>
         Cancel
-      </button>
+      </Button>
     </div>
   );
 }
 
 export default function Awareness() {
   const { user } = useAuth();
+  const showToast = useToast();
   const isAdmin = user?.role === 'admin';
   const [tab, setTab] = useState('tips');
   const [category, setCategory] = useState('');
@@ -276,8 +270,9 @@ export default function Awareness() {
   const [saving, setSaving] = useState(false);
   const [busyDrive, setBusyDrive] = useState('');
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
   const [editor, setEditor] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const loadContent = useCallback(async () => {
     setLoading(true);
@@ -343,7 +338,6 @@ export default function Awareness() {
     if (!editor) return;
     setSaving(true);
     setError('');
-    setNotice('');
     try {
       if (editor.type === 'tip') {
         const { _id, ...payload } = editor.value;
@@ -371,7 +365,7 @@ export default function Awareness() {
         else await awarenessApi.createDrive(payload);
       }
       setEditor(null);
-      setNotice('Awareness content saved.');
+      showToast('Awareness content saved.', 'success');
       await loadContent();
     } catch (requestError) {
       setError(requestError.message || 'Unable to save awareness content.');
@@ -380,24 +374,26 @@ export default function Awareness() {
     }
   };
 
-  const deleteContent = async (type, item) => {
-    if (!window.confirm(`Delete "${item.title}"? This cannot be undone.`)) return;
+  const deleteContent = async () => {
+    if (!deleteTarget) return;
     setError('');
-    setNotice('');
+    setDeleting(true);
     try {
-      if (type === 'tip') await awarenessApi.deleteTip(item._id);
-      else await awarenessApi.deleteDrive(item._id);
-      setNotice('Awareness content deleted.');
+      if (deleteTarget.type === 'tip') await awarenessApi.deleteTip(deleteTarget.item._id);
+      else await awarenessApi.deleteDrive(deleteTarget.item._id);
+      setDeleteTarget(null);
+      showToast('Awareness content deleted.', 'success');
       await loadContent();
     } catch (requestError) {
       setError(requestError.message || 'Unable to delete awareness content.');
+    } finally {
+      setDeleting(false);
     }
   };
 
   const toggleDrive = async (drive) => {
     setBusyDrive(drive._id);
     setError('');
-    setNotice('');
     try {
       const response = drive.hasJoined
         ? await awarenessApi.leaveDrive(drive._id)
@@ -405,7 +401,7 @@ export default function Awareness() {
       setDrives((current) =>
         current.map((item) => (item._id === drive._id ? response.data.drive : item)),
       );
-      setNotice(drive.hasJoined ? 'You left the drive.' : 'You joined the drive.');
+      showToast(drive.hasJoined ? 'You left the drive.' : 'You joined the drive.', 'success');
     } catch (requestError) {
       setError(requestError.message || 'Unable to update your drive participation.');
       await loadContent();
@@ -416,45 +412,43 @@ export default function Awareness() {
 
   return (
     <section>
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="grid gap-5 rounded-2xl border border-civic-100 bg-white/80 p-5 shadow-card sm:p-6 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.8fr)] lg:items-center">
         <div>
-          <p className="text-sm font-medium uppercase tracking-wide text-blue-700">Community</p>
-          <h1 className="mt-1 text-3xl font-bold text-slate-900">Awareness</h1>
-          <p className="mt-2 text-slate-600">
+          <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-civic-700">Community</p>
+          <h1 className="mt-2 font-heading text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">Awareness</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
             Practical civic tips and opportunities to make a difference together.
           </p>
         </div>
-        {isAdmin && (
-          <button
-            type="button"
-            className="rounded-lg bg-blue-700 px-4 py-2 font-medium text-white"
-            onClick={() =>
-              setEditor({
-                type: tab === 'tips' ? 'tip' : 'drive',
-                value: { ...(tab === 'tips' ? initialTip : initialDrive) },
-              })
-            }
-          >
-            Create {tab === 'tips' ? 'tip' : 'drive'}
-          </button>
-        )}
+        <div className="flex flex-wrap items-end justify-between gap-4 lg:justify-end">
+          <QuoteCard compact className="max-w-sm text-slate-700" />
+          {isAdmin && (
+            <Button
+              type="button"
+              className="min-h-11"
+              onClick={() =>
+                setEditor({
+                  type: tab === 'tips' ? 'tip' : 'drive',
+                  value: { ...(tab === 'tips' ? initialTip : initialDrive) },
+                })
+              }
+            >
+              Create {tab === 'tips' ? 'tip' : 'drive'}
+            </Button>
+          )}
+        </div>
       </div>
 
       {error && (
-        <p className="mt-5 rounded-lg bg-red-50 p-3 text-sm text-red-800" role="alert">
+        <p className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800" role="alert">
           {error}
         </p>
       )}
-      {notice && (
-        <p className="mt-5 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800" role="status">
-          {notice}
-        </p>
-      )}
 
-      <div className="mt-6 flex gap-2 border-b border-slate-200">
+      <div className="mt-6 flex gap-1 overflow-x-auto border-b border-slate-200">
         <button
           type="button"
-          className={`border-b-2 px-4 py-3 font-medium ${tab === 'tips' ? 'border-blue-700 text-blue-700' : 'border-transparent text-slate-600'}`}
+          className={`min-h-12 shrink-0 border-b-2 px-4 py-3 text-sm font-bold transition ${tab === 'tips' ? 'border-civic-700 text-civic-800' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
           onClick={() => {
             setTab('tips');
             setEditor(null);
@@ -464,7 +458,7 @@ export default function Awareness() {
         </button>
         <button
           type="button"
-          className={`border-b-2 px-4 py-3 font-medium ${tab === 'drives' ? 'border-blue-700 text-blue-700' : 'border-transparent text-slate-600'}`}
+          className={`min-h-12 shrink-0 border-b-2 px-4 py-3 text-sm font-bold transition ${tab === 'drives' ? 'border-civic-700 text-civic-800' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
           onClick={() => {
             setTab('drives');
             setEditor(null);
@@ -477,11 +471,10 @@ export default function Awareness() {
       {tab === 'tips' ? (
         <>
           <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-xl font-semibold">Civic Sense Tips</h2>
-            <label className="flex items-center gap-2 text-sm">
-              <span>Category</span>
-              <select
-                className={`${inputClass} w-auto`}
+            <h2 className="font-heading text-xl font-extrabold text-slate-950">Civic Sense Tips</h2>
+            <Select
+                label="Category"
+                className="min-w-52"
                 value={category}
                 onChange={(event) => {
                   setCategory(event.target.value);
@@ -492,8 +485,7 @@ export default function Awareness() {
                 {categories.map((item) => (
                   <option key={item}>{item}</option>
                 ))}
-              </select>
-            </label>
+            </Select>
           </div>
           {editor?.type === 'tip' && (
             <div className="mt-5">
@@ -507,16 +499,25 @@ export default function Awareness() {
             </div>
           )}
           {tipOfTheDay && (
-            <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-5">
-              <p className="text-sm font-semibold uppercase tracking-wide text-amber-800">
+            <div className="mt-5 rounded-2xl border border-accent-200 bg-gradient-to-br from-accent-50 to-white p-5 shadow-card sm:p-6">
+              <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-accent-700">
                 Tip of the day · {tipOfTheDay.category}
               </p>
-              <h3 className="mt-2 text-lg font-semibold text-slate-900">{tipOfTheDay.title}</h3>
-              <p className="mt-1 text-slate-700">{tipOfTheDay.content}</p>
+              <h3 className="mt-2 font-heading text-xl font-extrabold text-slate-950">{tipOfTheDay.title}</h3>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">{tipOfTheDay.content}</p>
             </div>
           )}
           {loading ? (
-            <p className="mt-6 text-slate-600">Loading tips…</p>
+            <div className="mt-5 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+              {Array.from({ length: 6 }, (_, index) => (
+                <Card key={index} className="space-y-3 p-5">
+                  <Skeleton className="h-5 w-28" />
+                  <Skeleton className="h-6 w-3/4" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-5/6" />
+                </Card>
+              ))}
+            </div>
           ) : tips.length ? (
             <div className="mt-5 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
               {tips.map((tip) => (
@@ -525,27 +526,25 @@ export default function Awareness() {
                   tip={tip}
                   admin={isAdmin}
                   onEdit={editTip}
-                  onDelete={(item) => deleteContent('tip', item)}
+                  onDelete={(item) => setDeleteTarget({ type: 'tip', item })}
                 />
               ))}
             </div>
           ) : !error ? (
-            <p className="mt-6 rounded-xl bg-white p-6 text-slate-600">
-              No tips found for this category.
-            </p>
+            <EmptyState className="mt-5" title="No tips in this category yet" description="Choose another category or check back later for new civic-sense ideas." />
           ) : null}
           <Pagination data={tipsPagination} page={tipsPage} onChange={setTipsPage} />
         </>
       ) : (
         <>
           <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-xl font-semibold">Cleanliness Drives</h2>
+            <h2 className="font-heading text-xl font-extrabold text-slate-950">Cleanliness Drives</h2>
             <div className="flex gap-2">
               {['upcoming', 'completed'].map((status) => (
                 <button
                   key={status}
                   type="button"
-                  className={`rounded-full px-4 py-2 text-sm font-medium capitalize ${driveStatus === status ? 'bg-blue-700 text-white' : 'bg-white text-slate-700'}`}
+                  className={`min-h-10 rounded-full px-4 py-2 text-sm font-bold capitalize transition ${driveStatus === status ? 'bg-civic-700 text-white shadow-sm' : 'border border-slate-200 bg-white text-slate-600 hover:bg-civic-50 hover:text-civic-800'}`}
                   onClick={() => {
                     setDriveStatus(status);
                     setDrivesPage(1);
@@ -568,7 +567,16 @@ export default function Awareness() {
             </div>
           )}
           {loading ? (
-            <p className="mt-6 text-slate-600">Loading drives…</p>
+            <div className="mt-5 grid gap-5 lg:grid-cols-2">
+              {Array.from({ length: 4 }, (_, index) => (
+                <Card key={index} className="space-y-3 p-5">
+                  <Skeleton className="h-6 w-2/3" />
+                  <Skeleton className="h-4 w-1/2" />
+                  <Skeleton className="h-20 w-full" />
+                  <Skeleton className="h-10 w-28" />
+                </Card>
+              ))}
+            </div>
           ) : drives.length ? (
             <div className="mt-5 grid gap-5 lg:grid-cols-2">
               {drives.map((drive) => (
@@ -579,18 +587,33 @@ export default function Awareness() {
                   busy={busyDrive === drive._id}
                   onJoin={toggleDrive}
                   onEdit={editDrive}
-                  onDelete={(item) => deleteContent('drive', item)}
+                  onDelete={(item) => setDeleteTarget({ type: 'drive', item })}
                 />
               ))}
             </div>
           ) : !error ? (
-            <p className="mt-6 rounded-xl bg-white p-6 text-slate-600">
-              No {driveStatus} drives are available.
-            </p>
+            <EmptyState className="mt-5" title={`No ${driveStatus} drives right now`} description="Community events will appear here as soon as they're scheduled." />
           ) : null}
           <Pagination data={drivesPagination} page={drivesPage} onChange={setDrivesPage} />
         </>
       )}
+      <Modal
+        open={Boolean(deleteTarget)}
+        title={`Delete ${deleteTarget?.type ?? 'content'}?`}
+        description={`“${deleteTarget?.item.title ?? ''}” will be permanently removed.`}
+        onClose={() => {
+          if (!deleting) setDeleteTarget(null);
+        }}
+      >
+        <div className="flex justify-end gap-3">
+          <Button type="button" variant="secondary" disabled={deleting} onClick={() => setDeleteTarget(null)}>
+            Cancel
+          </Button>
+          <Button type="button" variant="danger" loading={deleting} onClick={deleteContent}>
+            {deleting ? 'Deleting…' : 'Delete'}
+          </Button>
+        </div>
+      </Modal>
     </section>
   );
 }
@@ -599,25 +622,25 @@ function Pagination({ data, page, onChange }) {
   if (!data || data.pages < 2) return null;
   return (
     <div className="mt-6 flex items-center justify-center gap-4 text-sm">
-      <button
+      <Button
         type="button"
-        className="text-blue-700 disabled:text-slate-400"
+        variant="ghost"
         disabled={page <= 1}
         onClick={() => onChange(page - 1)}
       >
         Previous
-      </button>
-      <span className="text-slate-600">
+      </Button>
+      <span className="text-sm text-slate-600">
         Page {page} of {data.pages}
       </span>
-      <button
+      <Button
         type="button"
-        className="text-blue-700 disabled:text-slate-400"
+        variant="ghost"
         disabled={page >= data.pages}
         onClick={() => onChange(page + 1)}
       >
         Next
-      </button>
+      </Button>
     </div>
   );
 }

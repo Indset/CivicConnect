@@ -4,17 +4,9 @@ import L from 'leaflet';
 import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { getComplaintCoordinates } from '@/utils/complaintLocation';
+import { complaintStatusColors } from '@/data/complaintStatus';
 
 const defaultCenter = [20.5937, 78.9629];
-export const complaintStatusColors = {
-  submitted: '#2563eb',
-  under_review: '#7c3aed',
-  assigned: '#d97706',
-  in_progress: '#ea580c',
-  resolved: '#16a34a',
-  rejected: '#dc2626',
-  closed: '#475569',
-};
 
 const markerIcon = (color) =>
   L.divIcon({
@@ -91,7 +83,12 @@ export function LocationPicker({ coordinates, onSelect }) {
   );
 }
 
-export function ComplaintMap({ complaints, fitAll = false, readOnlyComplaint }) {
+export function ComplaintMap({
+  complaints,
+  fitAll = false,
+  readOnlyComplaint,
+  className = 'h-96 w-full',
+}) {
   const complaintCoordinates = readOnlyComplaint && getComplaintCoordinates(readOnlyComplaint);
   const center = complaintCoordinates
     ? [complaintCoordinates.lat, complaintCoordinates.lng]
@@ -102,7 +99,7 @@ export function ComplaintMap({ complaints, fitAll = false, readOnlyComplaint }) 
       center={center}
       zoom={complaintCoordinates ? 15 : 5}
       scrollWheelZoom
-      className="h-96 w-full"
+      className={className}
     >
       <MapTiles />
       {fitAll && <FitMarkers complaints={complaints} />}

@@ -1,21 +1,69 @@
 @import 'tailwindcss';
 
+@theme {
+  --color-civic-50: #eef8f7;
+  --color-civic-100: #d7efec;
+  --color-civic-200: #b2e0db;
+  --color-civic-300: #83cbc3;
+  --color-civic-400: #4aafa5;
+  --color-civic-500: #258f87;
+  --color-civic-600: #19766f;
+  --color-civic-700: #155e5a;
+  --color-civic-800: #164c49;
+  --color-civic-900: #153f3d;
+  --color-civic-950: #092725;
+
+  --color-accent-50: #fff7ed;
+  --color-accent-100: #ffedd5;
+  --color-accent-200: #fed7aa;
+  --color-accent-500: #f08a3c;
+  --color-accent-600: #dd7028;
+  --color-accent-700: #a8440c;
+
+  --color-chart-civic: #258f87;
+  --color-chart-civic-deep: #155e5a;
+  --color-chart-accent: #f08a3c;
+  --color-chart-accent-deep: #dd7028;
+  --color-chart-violet: #7664a8;
+  --color-chart-rose: #c34b55;
+  --color-chart-slate: #64748b;
+  --color-chart-grid: #e5ecea;
+
+  --font-body: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-heading: 'Manrope', 'Plus Jakarta Sans', ui-sans-serif, sans-serif;
+
+  --radius-card: 1.25rem;
+  --shadow-card: 0 16px 42px -28px rgb(15 35 48 / 38%);
+  --shadow-float: 0 20px 55px -30px rgb(9 39 37 / 42%);
+}
+
 :root {
-  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-  color: #0f172a;
-  background: #f8fafc;
+  font-family: var(--font-body);
+  color: #172b35;
+  background: #f5f8f7;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-optical-sizing: auto;
 }
 
 * {
   box-sizing: border-box;
 }
 
+html {
+  min-width: 320px;
+  scroll-behavior: smooth;
+}
+
 body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
+  background:
+    radial-gradient(ellipse at 12% 0%, rgb(215 239 236 / 48%), transparent 34rem),
+    #f5f8f7;
 }
 
 button,
@@ -23,6 +71,33 @@ input,
 textarea,
 select {
   font: inherit;
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+a {
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+::selection {
+  color: #092725;
+  background: #b2e0db;
+}
+
+:focus-visible {
+  outline: 2px solid #19766f;
+  outline-offset: 3px;
+}
+
+.font-heading {
+  font-family: var(--font-heading);
 }
 
 .civic-map-marker {
@@ -38,4 +113,15 @@ select {
   border-radius: 50% 50% 50% 0;
   box-shadow: 0 1px 5px #0f172a99;
   transform: rotate(-45deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -15,9 +15,10 @@ import {
   YAxis,
 } from 'recharts';
 import { adminApi } from '@/services/api/endpoints';
-
-const field =
-  'rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100';
+import Card from '@/components/ui/Card';
+import Skeleton from '@/components/ui/Skeleton';
+import EmptyState from '@/components/ui/EmptyState';
+import { Select } from '@/components/ui/Field';
 const statusNames = {
   submitted: 'Pending',
   under_review: 'Pending review',
@@ -28,13 +29,13 @@ const statusNames = {
   closed: 'Closed',
 };
 const statusColors = {
-  submitted: '#2563eb',
-  under_review: '#7c3aed',
-  assigned: '#d97706',
-  in_progress: '#ea580c',
-  resolved: '#059669',
-  rejected: '#dc2626',
-  closed: '#64748b',
+  submitted: 'var(--color-chart-civic)',
+  under_review: 'var(--color-chart-violet)',
+  assigned: 'var(--color-chart-accent)',
+  in_progress: 'var(--color-chart-accent-deep)',
+  resolved: 'var(--color-chart-civic-deep)',
+  rejected: 'var(--color-chart-rose)',
+  closed: 'var(--color-chart-slate)',
 };
 const periodLabels = {
   '7d': 'Last 7 days',
@@ -44,26 +45,24 @@ const periodLabels = {
 
 function MetricCard({ label, value, detail }) {
   return (
-    <article className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-      <p className="text-sm font-medium text-slate-500">{label}</p>
-      <p className="mt-2 text-3xl font-bold text-slate-900">{value}</p>
+    <Card as="article" className="p-5">
+      <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="mt-3 font-heading text-3xl font-extrabold tracking-tight text-slate-950">{value}</p>
       {detail && <p className="mt-1 text-xs text-slate-500">{detail}</p>}
-    </article>
+    </Card>
   );
 }
 
 function ChartPanel({ title, children, empty }) {
   return (
-    <section className="min-w-0 rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-      <h2 className="mb-4 font-semibold text-slate-900">{title}</h2>
+    <Card as="section" className="min-w-0 p-5 sm:p-6">
+      <h2 className="mb-4 font-heading text-base font-extrabold text-slate-950">{title}</h2>
       {empty ? (
-        <p className="grid h-64 place-items-center text-sm text-slate-500">
-          No data for this period.
-        </p>
+        <EmptyState className="h-64 border-0 shadow-none" title="No chart data yet" description="There is nothing to display for this period." />
       ) : (
         children
       )}
-    </section>
+    </Card>
   );
 }
 
@@ -138,13 +137,13 @@ export default function AdminAnalyticsDashboard() {
     <div>
       <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Administration analytics</h1>
-          <p className="mt-1 text-slate-600">Complaint trends and resolution performance.</p>
+          <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-civic-700">Overview</p>
+          <h1 className="mt-2 font-heading text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">Administration analytics</h1>
+          <p className="mt-2 text-sm text-slate-600">Complaint trends and resolution performance.</p>
         </div>
-        <label className="flex items-center gap-3 text-sm font-medium text-slate-700">
-          Date range
-          <select
-            className={field}
+        <Select
+            label="Date range"
+            className="min-w-44"
             onChange={(event) => setRange(event.target.value)}
             value={range}
           >
@@ -153,18 +152,31 @@ export default function AdminAnalyticsDashboard() {
                 {label}
               </option>
             ))}
-          </select>
-        </label>
+        </Select>
       </header>
 
       {error && (
-        <p className="mb-5 rounded-lg bg-red-50 p-4 text-sm text-red-700" role="alert">
+        <p className="mb-5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800" role="alert">
           Unable to load analytics: {error}
         </p>
       )}
 
       {loading && !analytics ? (
-        <p className="rounded-xl bg-white p-8 text-center text-slate-600">Loading analytics…</p>
+        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5" aria-label="Loading analytics">
+          {Array.from({ length: 5 }, (_, index) => (
+            <Card key={index} className="space-y-3 p-5">
+              <Skeleton className="h-4 w-2/3" />
+              <Skeleton className="h-9 w-1/2" />
+              <Skeleton className="h-3 w-3/4" />
+            </Card>
+          ))}
+          {Array.from({ length: 4 }, (_, index) => (
+            <Card key={`chart-${index}`} className="space-y-4 p-5 lg:col-span-1">
+              <Skeleton className="h-5 w-1/2" />
+              <Skeleton className="h-60 w-full" />
+            </Card>
+          ))}
+        </section>
       ) : (
         analytics && (
           <>
@@ -187,14 +199,14 @@ export default function AdminAnalyticsDashboard() {
               />
             </section>
             {analytics.totals.total === 0 && (
-              <p className="mt-5 rounded-lg bg-white p-4 text-center text-sm text-slate-600 ring-1 ring-slate-200">
+              <p className="mt-5 rounded-2xl border border-civic-100 bg-civic-50 p-4 text-center text-sm text-civic-900">
                 No complaints were created during {periodLabels[range].toLowerCase()}.
               </p>
             )}
 
             <section className="mt-5 grid gap-5 lg:grid-cols-2">
               <ChartPanel title="Complaints by status" empty={!statusData.length}>
-                <div className="h-72 min-w-0">
+                <div aria-label="Complaint distribution by status" className="h-72 min-w-0" role="group">
                   <ResponsiveContainer height="100%" width="100%">
                     <PieChart>
                       <Pie
@@ -208,7 +220,7 @@ export default function AdminAnalyticsDashboard() {
                         paddingAngle={2}
                       >
                         {statusData.map((item) => (
-                          <Cell key={item.status} fill={statusColors[item.status] ?? '#64748b'} />
+                          <Cell key={item.status} fill={statusColors[item.status] ?? 'var(--color-chart-slate)'} />
                         ))}
                       </Pie>
                       <Tooltip />
@@ -219,13 +231,13 @@ export default function AdminAnalyticsDashboard() {
               </ChartPanel>
 
               <ChartPanel title="Complaints by category" empty={!analytics.categoryCounts.length}>
-                <div className="h-72 min-w-0">
+                <div aria-label="Complaint counts by category" className="h-72 min-w-0" role="group">
                   <ResponsiveContainer height="100%" width="100%">
                     <BarChart
                       data={analytics.categoryCounts}
                       margin={{ top: 8, right: 12, left: -18, bottom: 28 }}
                     >
-                      <CartesianGrid strokeDasharray="3 3" />
+                      <CartesianGrid stroke="var(--color-chart-grid)" strokeDasharray="3 3" />
                       <XAxis
                         dataKey="name"
                         angle={-20}
@@ -236,20 +248,20 @@ export default function AdminAnalyticsDashboard() {
                       />
                       <YAxis allowDecimals={false} />
                       <Tooltip />
-                      <Bar dataKey="count" name="Complaints" fill="#2563eb" radius={[5, 5, 0, 0]} />
+                      <Bar dataKey="count" name="Complaints" fill="var(--color-chart-civic)" radius={[5, 5, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
               </ChartPanel>
 
               <ChartPanel title="Complaint trend" empty={!trendData.some((item) => item.count)}>
-                <div className="h-72 min-w-0">
+                <div aria-label={`Complaint volume trend for ${periodLabels[range].toLowerCase()}`} className="h-72 min-w-0" role="group">
                   <ResponsiveContainer height="100%" width="100%">
                     <LineChart
                       data={trendData}
                       margin={{ top: 8, right: 16, left: -18, bottom: 4 }}
                     >
-                      <CartesianGrid strokeDasharray="3 3" />
+                      <CartesianGrid stroke="var(--color-chart-grid)" strokeDasharray="3 3" />
                       <XAxis dataKey="label" minTickGap={18} tick={{ fontSize: 11 }} />
                       <YAxis allowDecimals={false} />
                       <Tooltip />
@@ -257,7 +269,7 @@ export default function AdminAnalyticsDashboard() {
                         dataKey="count"
                         name="Complaints"
                         type="monotone"
-                        stroke="#2563eb"
+                        stroke="var(--color-chart-civic)"
                         strokeWidth={3}
                         dot={{ r: 3 }}
                         activeDot={{ r: 6 }}
@@ -271,7 +283,7 @@ export default function AdminAnalyticsDashboard() {
                 <ol className="divide-y">
                   {analytics.topUpvoted.map((complaint, index) => (
                     <li className="flex items-center gap-3 py-3" key={complaint._id}>
-                      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-blue-50 text-sm font-semibold text-blue-700">
+                      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-civic-50 text-sm font-extrabold text-civic-800">
                         {index + 1}
                       </span>
                       <div className="min-w-0 flex-1">

@@ -1,0 +1,4 @@
+{
+    "python.terminal.useEnvFile": true,
+    "cmake.sourceDirectory": "C:/Users/mdzai/OneDrive/Desktop/CivicConnect/server/node_modules/bare-fs"
+}
