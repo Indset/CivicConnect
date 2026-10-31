@@ -56,6 +56,20 @@ export const validateAdminComplaintQuery = (req, res, next) => {
   }
 };
 
+export const validateAnalyticsRange = (req, res, next) => {
+  const allowed = ['range'];
+  const unknown = Object.keys(req.query).filter((key) => !allowed.includes(key));
+  if (unknown.length) {
+    return next(new ApiError(422, `Unsupported query parameters: ${unknown.join(', ')}`));
+  }
+  const range = req.query.range ?? '6m';
+  if (!['7d', '30d', '6m'].includes(range)) {
+    return next(new ApiError(422, 'range must be 7d, 30d, or 6m'));
+  }
+  req.validatedQuery = { range };
+  return next();
+};
+
 export const validateComplaintAssignment = (req, res, next) => {
   const { assignedTo } = req.body ?? {};
   if (!assignedTo || !mongoose.isValidObjectId(assignedTo)) {

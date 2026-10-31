@@ -8,6 +8,7 @@ import {
   deleteCategory,
   deleteComplaintByAdmin,
   getAdminDashboard,
+  getAdminAnalytics,
   getCategoryStats,
   getMonthlyComplaintStats,
   getPriorityStats,
@@ -118,4 +119,9 @@ export const getStatusStatsHandler = async (req, res) => {
 export const getPriorityStatsHandler = async (req, res) => {
   const stats = await getPriorityStats();
   return res.status(200).json(new ApiResponse(200, { stats }, 'Priority statistics retrieved successfully'));
+};
+
+export const getAnalytics = async (req, res) => {
+  const analytics = await getAdminAnalytics(req.validatedQuery.range);
+  return res.status(200).json(new ApiResponse(200, { analytics }, 'Admin analytics retrieved successfully'));
 };

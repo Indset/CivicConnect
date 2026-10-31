@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -11,6 +11,8 @@ import {
 import { ComplaintMap, complaintStatusColors, LocationPicker } from '@/components/ComplaintMap';
 import { getComplaintCoordinates, getComplaintLocationAddress } from '@/utils/complaintLocation';
 import PublicFeed from '@/pages/PublicFeed';
+
+const AdminAnalyticsDashboard = lazy(() => import('@/pages/AdminAnalyticsDashboard'));
 
 const field =
   'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100';
@@ -244,46 +246,48 @@ function Dashboard({ mode }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   useEffect(() => {
+    if (mode === 'admin') return undefined;
     const load = async () => {
       try {
-        if (mode === 'admin') setData((await adminApi.dashboard()).data.dashboard);
-        else setData((await complaintsApi.mine({ limit: 5 })).data);
+        setData((await complaintsApi.mine({ limit: 5 })).data);
       } catch (err) {
         setError(err.message);
       }
     };
     load();
+    return undefined;
   }, [mode]);
   return (
     <Shell>
-      <h1 className="text-2xl font-bold">
-        {mode === 'admin' ? 'Administration' : `Hello, ${user.fullName.split(' ')[0]}`}
-      </h1>
-      {error && <p className="mt-4 text-red-700">{error}</p>}
-      {!data ? (
-        <p className="mt-4">Loading…</p>
-      ) : mode === 'admin' ? (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {Object.entries(data).map(([key, value]) => (
-            <div key={key} className="rounded-xl bg-white p-5 shadow-sm">
-              <p className="text-sm text-slate-500">{key.replace(/([A-Z])/g, ' $1')}</p>
-              <p className="mt-1 text-3xl font-bold">{value}</p>
-            </div>
-          ))}
-        </div>
+      {mode === 'admin' ? (
+        <Suspense fallback={<p className="mt-4 text-slate-600">Loading analytics…</p>}>
+          <AdminAnalyticsDashboard />
+        </Suspense>
       ) : (
-        <div className="mt-6 rounded-xl bg-white p-5 shadow-sm">
-          <h2 className="font-semibold">Your recent reports</h2>
-          <ul className="mt-3 divide-y">
-            {data.complaints.map((item) => (
-              <li className="py-3" key={item._id}>
-                {item.title}{' '}
-                <span className="text-sm text-slate-500">· {item.status.replace('_', ' ')}</span>
-              </li>
-            ))}
-            {!data.complaints.length && <li className="py-3 text-slate-500">No reports yet.</li>}
-          </ul>
-        </div>
+        <>
+          <h1 className="text-2xl font-bold">Hello, {user.fullName.split(' ')[0]}</h1>
+          {error && <p className="mt-4 text-red-700">{error}</p>}
+          {!data ? (
+            <p className="mt-4">Loading…</p>
+          ) : (
+            <div className="mt-6 rounded-xl bg-white p-5 shadow-sm">
+              <h2 className="font-semibold">Your recent reports</h2>
+              <ul className="mt-3 divide-y">
+                {data.complaints.map((item) => (
+                  <li className="py-3" key={item._id}>
+                    {item.title}{' '}
+                    <span className="text-sm text-slate-500">
+                      · {item.status.replace('_', ' ')}
+                    </span>
+                  </li>
+                ))}
+                {!data.complaints.length && (
+                  <li className="py-3 text-slate-500">No reports yet.</li>
+                )}
+              </ul>
+            </div>
+          )}
+        </>
       )}
     </Shell>
   );

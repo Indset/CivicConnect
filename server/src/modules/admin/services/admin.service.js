@@ -308,3 +308,188 @@ export const getPriorityStats = async () => {
     { $sort: { count: -1 } },
   ]);
 };
+
+export const getAdminAnalytics = async (range = '6m') => {
+  const now = new Date();
+  const start = new Date(now);
+  if (range === '7d') start.setUTCDate(start.getUTCDate() - 6);
+  else if (range === '30d') start.setUTCDate(start.getUTCDate() - 29);
+  else {
+    start.setUTCDate(1);
+    start.setUTCMonth(now.getUTCMonth() - 5);
+  }
+  start.setUTCHours(0, 0, 0, 0);
+
+  const dateFilter = { createdAt: { $gte: start, $lte: now } };
+  const trendFormat = range === '6m' ? '%Y-%m' : '%Y-%m-%d';
+  const trendLabelFormat = range === '6m' ? '%b %Y' : '%b %d';
+  const [
+    total,
+    statusCounts,
+    categoryCounts,
+    trend,
+    resolution,
+    topUpvoted,
+    areaCounts,
+  ] = await Promise.all([
+    Complaint.countDocuments(dateFilter),
+    Complaint.aggregate([
+      { $match: dateFilter },
+      { $group: { _id: '$status', count: { $sum: 1 } } },
+      { $project: { _id: 0, status: '$_id', count: 1 } },
+      { $sort: { status: 1 } },
+    ]),
+    Complaint.aggregate([
+      { $match: dateFilter },
+      { $group: { _id: '$category', count: { $sum: 1 } } },
+      {
+        $lookup: {
+          from: 'categories',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'category',
+        },
+      },
+      { $unwind: { path: '$category', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          _id: 0,
+          categoryId: '$_id',
+          name: { $ifNull: ['$category.name', 'Uncategorized'] },
+          count: 1,
+        },
+      },
+      { $sort: { count: -1, name: 1 } },
+    ]),
+    Complaint.aggregate([
+      { $match: dateFilter },
+      {
+        $group: {
+          _id: { $dateToString: { format: trendFormat, date: '$createdAt' } },
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          date: '$_id',
+          label: {
+            $dateToString: {
+              format: trendLabelFormat,
+              date: { $dateFromString: { dateString: { $concat: ['$_id', range === '6m' ? '-01' : ''] } } },
+            },
+          },
+          count: 1,
+        },
+      },
+      { $sort: { date: 1 } },
+    ]),
+    Complaint.aggregate([
+      { $match: { ...dateFilter, status: { $in: ['resolved', 'closed'] } } },
+      {
+        $addFields: {
+          resolutionEntry: {
+            $first: {
+              $filter: {
+                input: { $ifNull: ['$statusHistory', []] },
+                as: 'entry',
+                cond: { $in: ['$$entry.status', ['resolved', 'closed']] },
+              },
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          durationHours: {
+            $divide: [
+              { $subtract: [{ $ifNull: ['$resolutionEntry.changedAt', '$updatedAt'] }, '$createdAt'] },
+              3600000,
+            ],
+          },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          averageHours: { $avg: '$durationHours' },
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          hours: '$averageHours',
+          days: { $divide: ['$averageHours', 24] },
+          count: 1,
+        },
+      },
+    ]),
+    Complaint.aggregate([
+      { $match: dateFilter },
+      {
+        $addFields: {
+          votes: { $ifNull: ['$upvoteCount', { $size: { $ifNull: ['$upvotes', []] } }] },
+        },
+      },
+      { $sort: { votes: -1, createdAt: -1, _id: -1 } },
+      { $limit: 5 },
+      {
+        $project: {
+          _id: 1,
+          complaintId: 1,
+          title: 1,
+          status: 1,
+          upvoteCount: '$votes',
+        },
+      },
+    ]),
+    Complaint.aggregate([
+      { $match: dateFilter },
+      {
+        $addFields: {
+          area: {
+            $ifNull: [
+              '$location.address',
+              { $ifNull: ['$location.city', '$location'] },
+            ],
+          },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            $cond: [
+              { $eq: [{ $type: '$area' }, 'string'] },
+              { $trim: { input: '$area' } },
+              null,
+            ],
+          },
+          count: { $sum: 1 },
+        },
+      },
+      { $match: { _id: { $nin: ['', null] } } },
+      { $project: { _id: 0, area: '$_id', count: 1 } },
+      { $sort: { count: -1, area: 1 } },
+      { $limit: 10 },
+    ]),
+  ]);
+
+  const statusCountsByName = Object.fromEntries(statusCounts.map(({ status, count }) => [status, count]));
+  return {
+    range,
+    dateRange: { from: start, to: now },
+    totals: {
+      total,
+      pending: (statusCountsByName.submitted ?? 0) + (statusCountsByName.under_review ?? 0),
+      inProgress: (statusCountsByName.assigned ?? 0) + (statusCountsByName.in_progress ?? 0),
+      resolved: (statusCountsByName.resolved ?? 0) + (statusCountsByName.closed ?? 0),
+    },
+    statusCounts,
+    categoryCounts,
+    trend,
+    averageResolutionTime: resolution[0] ?? { hours: null, days: null, count: 0 },
+    topUpvoted,
+    areaCounts,
+  };
+};

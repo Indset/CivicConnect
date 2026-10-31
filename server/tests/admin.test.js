@@ -132,4 +132,73 @@ describe('Admin API', () => {
       type: 'complaint_status',
     })).toBe(1);
   });
+
+  it('returns aggregated analytics for a requested period', async () => {
+    const parks = await Category.create({ name: 'Parks', description: 'Public park issues' });
+    const olderDate = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+    await Complaint.create({
+      user: owner.id,
+      category: category.id,
+      title: 'Resolved streetlight',
+      description: 'The broken streetlight beside the public park has been repaired by city workers.',
+      location: 'Park Road, Ward 4',
+      status: 'resolved',
+      upvoteCount: 12,
+      createdAt: olderDate,
+      updatedAt: new Date(olderDate.getTime() + 36 * 60 * 60 * 1000),
+      statusHistory: [
+        { status: 'submitted', changedBy: owner.id, changedAt: olderDate },
+        { status: 'resolved', note: 'Repaired', changedBy: admin.id, changedAt: new Date(olderDate.getTime() + 36 * 60 * 60 * 1000) },
+      ],
+    });
+    await Complaint.create({
+      user: owner.id,
+      category: parks.id,
+      title: 'Broken park entrance gate',
+      description: 'The entrance gate to the central park is broken and cannot be securely closed.',
+      location: { address: 'Central Park, Ward 2' },
+      status: 'in_progress',
+    });
+
+    const response = await requestApp
+      .get('/api/v1/admin/analytics?range=30d')
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.analytics).toMatchObject({
+      range: '30d',
+      totals: { total: 2, pending: 0, inProgress: 1, resolved: 1 },
+      averageResolutionTime: { hours: 36, days: 1.5, count: 1 },
+    });
+    expect(response.body.data.analytics.statusCounts).toEqual(expect.arrayContaining([
+      { status: 'resolved', count: 1 },
+      { status: 'in_progress', count: 1 },
+    ]));
+    expect(response.body.data.analytics.categoryCounts).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'Roads', count: 1 }),
+      expect.objectContaining({ name: 'Parks', count: 1 }),
+    ]));
+    expect(response.body.data.analytics.trend).toHaveLength(2);
+    expect(response.body.data.analytics.topUpvoted[0]).toMatchObject({ upvoteCount: 12 });
+    expect(response.body.data.analytics.areaCounts).toEqual(expect.arrayContaining([
+      { area: 'Park Road, Ward 4', count: 1 },
+      { area: 'Central Park, Ward 2', count: 1 },
+    ]));
+  });
+
+  it('rejects unsupported analytics ranges', async () => {
+    const response = await requestApp
+      .get('/api/v1/admin/analytics?range=90d')
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(response.status).toBe(422);
+  });
+
+  it('restricts analytics to administrators', async () => {
+    const response = await requestApp
+      .get('/api/v1/admin/analytics?range=7d')
+      .set('Authorization', `Bearer ${ownerToken}`);
+
+    expect(response.status).toBe(403);
+  });
 });

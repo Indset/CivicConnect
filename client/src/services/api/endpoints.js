@@ -37,6 +37,7 @@ export const categoriesApi = {
 
 export const adminApi = {
   dashboard: () => api.get('/admin/dashboard'),
+  analytics: (range = '6m') => api.get('/admin/analytics', { params: { range } }),
   complaints: (params) => api.get('/admin/complaints', { params }),
   setStatus: (id, status, note = '') =>
     api.patch(`/admin/complaints/${id}/status`, { status, note }),

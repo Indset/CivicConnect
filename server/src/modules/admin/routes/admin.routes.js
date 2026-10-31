@@ -93,6 +93,24 @@ import { Router } from 'express';
  *     responses:
  *       '200':
  *         description: Analytics retrieved successfully
+ * /admin/analytics:
+ *   get:
+ *     tags: [Admin]
+ *     summary: Get complaint analytics for a selected period
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: range
+ *         schema:
+ *           type: string
+ *           enum: [7d, 30d, 6m]
+ *           default: 6m
+ *     responses:
+ *       '200':
+ *         description: Aggregated complaint analytics retrieved successfully
+ *       '403':
+ *         description: Admin access required
  */
 import Joi from 'joi';
 import { authenticate } from '../../auth/middleware/auth.middleware.js';
@@ -110,6 +128,7 @@ import {
   deleteComplaint,
   getCategoryStatsHandler,
   getDashboard,
+  getAnalytics,
   getMonthlyStats,
   getPriorityStatsHandler,
   getStatusStatsHandler,
@@ -121,6 +140,7 @@ import {
 } from '../controllers/admin.controller.js';
 import {
   validateAdminComplaintQuery,
+  validateAnalyticsRange,
   validateCategoryId,
   validateUserId,
   validateUserQuery,
@@ -134,6 +154,7 @@ const router = Router();
 router.use(authenticate, adminOnly);
 
 router.get('/dashboard', asyncHandler(getDashboard));
+router.get('/analytics', validateAnalyticsRange, asyncHandler(getAnalytics));
 router.get('/complaints', validateAdminComplaintQuery, asyncHandler(listComplaints));
 router.post('/complaints/:id/assign', validate(assignComplaintSchema), asyncHandler(assignComplaint));
 router.patch('/complaints/:id/status', validate(updateComplaintStatusSchema), asyncHandler(changeStatus));
