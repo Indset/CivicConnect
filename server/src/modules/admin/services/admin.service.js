@@ -2,7 +2,10 @@ import mongoose from 'mongoose';
 import Complaint from '../../complaints/models/complaint.model.js';
 import Category from '../../categories/models/category.model.js';
 import User from '../../auth/models/user.model.js';
+import { createNotification } from '../../notifications/services/notification.service.js';
+import { sendComplaintStatusEmail } from '../../complaints/services/complaint-status-email.service.js';
 import { ApiError } from '../../../utils/ApiError.js';
+import logger from '../../../utils/logger.js';
 
 const complaintPopulation = [
   { path: 'user', select: 'fullName avatar' },
@@ -22,6 +25,60 @@ const buildPagination = (page, limit, total) => ({
 
 const pendingStatuses = ['submitted', 'under_review', 'assigned', 'in_progress'];
 const resolvedStatuses = ['resolved', 'closed'];
+const statusTransitions = {
+  submitted: ['under_review', 'assigned', 'in_progress', 'resolved', 'rejected'],
+  under_review: ['assigned', 'in_progress', 'resolved', 'rejected'],
+  assigned: ['in_progress', 'resolved', 'rejected'],
+  in_progress: ['resolved', 'rejected'],
+  resolved: ['closed'],
+  rejected: ['closed'],
+  closed: [],
+};
+const statusLabels = {
+  submitted: 'Pending',
+  under_review: 'Pending review',
+  assigned: 'Assigned',
+  in_progress: 'In Progress',
+  resolved: 'Resolved',
+  rejected: 'Rejected',
+  closed: 'Closed',
+};
+
+const validateStatusTransition = (currentStatus, nextStatus) => {
+  if (currentStatus === nextStatus) return;
+  if (!statusTransitions[currentStatus]?.includes(nextStatus)) {
+    throw new ApiError(409, `Cannot change complaint status from ${currentStatus} to ${nextStatus}`);
+  }
+};
+
+const notifyComplaintOwner = async (complaint, status, note) => {
+  const owner = await User.findById(complaint.user).select('fullName email');
+  if (!owner) throw new ApiError(404, 'Complaint owner not found');
+
+  const label = statusLabels[status] ?? status;
+  const noteText = note ? ` Note: ${note}` : '';
+  await createNotification({
+    user: owner.id,
+    title: 'Complaint status updated',
+    message: `${complaint.complaintId}: "${complaint.title}" is now ${label}.${noteText}`,
+    type: 'complaint_status',
+    complaint: complaint.id,
+  });
+
+  Promise.resolve()
+    .then(() => sendComplaintStatusEmail({
+      email: owner.email,
+      fullName: owner.fullName,
+      complaint,
+      status: label,
+      note,
+    }))
+    .catch((error) => logger.error('Failed to send complaint status email', {
+      complaintId: complaint.id,
+      ownerId: owner.id,
+      error: error.message,
+    }));
+};
 
 export const getAdminDashboard = async () => {
   const [totalUsers, totalComplaints, pendingComplaints, resolvedComplaints, categoriesCount] = await Promise.all([
@@ -70,26 +127,51 @@ export const listAdminComplaints = async (options = {}) => {
   };
 };
 
-export const assignComplaintToUser = async (complaintId, assignedTo) => {
+export const assignComplaintToUser = async (complaintId, assignedTo, changedBy) => {
   const [complaint, user] = await Promise.all([
     Complaint.findById(complaintId),
-    User.findById(assignedTo).select('role isActive'),
+    User.findById(assignedTo).select('role isActive fullName'),
   ]);
 
   if (!complaint) throw new ApiError(404, 'Complaint not found');
   if (!user || !user.isActive) throw new ApiError(404, 'Assigned user not found');
 
-  complaint.assignedTo = assignedTo;
-  complaint.status = 'assigned';
-  await complaint.save();
+  validateStatusTransition(complaint.status, 'assigned');
+  const statusChanged = complaint.status !== 'assigned';
+  const note = `Complaint assigned to ${user.fullName}.`;
+  const update = { $set: { assignedTo } };
+  if (statusChanged) {
+    update.$set.status = 'assigned';
+    update.$push = { statusHistory: { status: 'assigned', note, changedBy } };
+  }
+  const updatedComplaint = await Complaint.findOneAndUpdate(
+    { _id: complaint._id, status: complaint.status },
+    update,
+    { new: true, runValidators: true },
+  );
+  if (!updatedComplaint) throw new ApiError(409, 'Complaint status changed; refresh and try again');
+  if (statusChanged) await notifyComplaintOwner(updatedComplaint, 'assigned', note);
   return Complaint.findById(complaint._id).populate(complaintPopulation).lean();
 };
 
-export const updateComplaintStatus = async (complaintId, status) => {
+export const updateComplaintStatus = async (complaintId, status, changedBy, note = '') => {
   const complaint = await Complaint.findById(complaintId);
   if (!complaint) throw new ApiError(404, 'Complaint not found');
-  complaint.status = status;
-  await complaint.save();
+  validateStatusTransition(complaint.status, status);
+  if (complaint.status === status) {
+    return Complaint.findById(complaint._id).populate(complaintPopulation).lean();
+  }
+
+  const updatedComplaint = await Complaint.findOneAndUpdate(
+    { _id: complaint._id, status: complaint.status },
+    {
+      $set: { status },
+      $push: { statusHistory: { status, note, changedBy } },
+    },
+    { new: true, runValidators: true },
+  );
+  if (!updatedComplaint) throw new ApiError(409, 'Complaint status changed; refresh and try again');
+  await notifyComplaintOwner(updatedComplaint, status, note);
   return Complaint.findById(complaint._id).populate(complaintPopulation).lean();
 };
 

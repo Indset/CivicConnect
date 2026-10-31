@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import Complaint from '../models/complaint.model.js';
 import Category from '../../categories/models/category.model.js';
+import { createNotification } from '../../notifications/services/notification.service.js';
 import { ApiError } from '../../../utils/ApiError.js';
 
 const population = [
@@ -28,7 +29,13 @@ const ensureOwnerCanModify = (complaint, userId) => {
 
 export const createComplaint = async (ownerId, data) => {
   await ensureActiveCategory(data.category);
-  const complaint = await Complaint.create({ ...data, user: ownerId });
+  const complaint = new Complaint({ ...data, user: ownerId });
+  complaint.statusHistory.push({
+    status: complaint.status,
+    note: 'Complaint submitted',
+    changedBy: ownerId,
+  });
+  await complaint.save();
   return Complaint.findById(complaint._id).populate(population).lean();
 };
 
@@ -70,6 +77,7 @@ export const toggleComplaintUpvote = async (id, userId) => {
   const userObjectId = new mongoose.Types.ObjectId(userId);
   const currentUpvotes = { $ifNull: ['$upvotes', []] };
   const alreadyUpvoted = { $in: [userObjectId, currentUpvotes] };
+  const currentCount = { $size: currentUpvotes };
   const updatedUpvotes = {
     $cond: [
       alreadyUpvoted,
@@ -77,18 +85,58 @@ export const toggleComplaintUpvote = async (id, userId) => {
       { $setUnion: [currentUpvotes, [userObjectId]] },
     ],
   };
+  const updatedCount = { $size: updatedUpvotes };
+  const milestonesToNotify = {
+    $filter: {
+      input: [10, 25, 50],
+      as: 'milestone',
+      cond: {
+        $and: [
+          { $lt: [currentCount, '$$milestone'] },
+          { $gte: [updatedCount, '$$milestone'] },
+          {
+            $eq: [
+              { $in: ['$$milestone', { $ifNull: ['$notifiedUpvoteMilestones', []] }] },
+              false,
+            ],
+          },
+        ],
+      },
+    },
+  };
   const complaint = await Complaint.findOneAndUpdate(
     identifierFilter(id),
     [{
       $set: {
         upvotes: updatedUpvotes,
-        upvoteCount: { $size: updatedUpvotes },
+        upvoteCount: updatedCount,
+        upvoteMilestonesToNotify: milestonesToNotify,
+        notifiedUpvoteMilestones: {
+          $setUnion: [{ $ifNull: ['$notifiedUpvoteMilestones', []] }, milestonesToNotify],
+        },
       },
     }],
-    { new: true, projection: { upvotes: 1, upvoteCount: 1 } },
+    {
+      new: true,
+      projection: {
+        upvotes: 1,
+        upvoteCount: 1,
+        user: 1,
+        title: 1,
+        complaintId: 1,
+        upvoteMilestonesToNotify: 1,
+      },
+    },
   ).lean();
 
   if (!complaint) throw new ApiError(404, 'Complaint not found');
+  await Promise.all(complaint.upvoteMilestonesToNotify.map((milestone) => createNotification({
+    user: complaint.user,
+    title: 'Complaint reached an upvote milestone',
+    message: `${complaint.complaintId}: "${complaint.title}" received ${milestone} upvotes.`,
+    type: 'complaint_upvote_milestone',
+    complaint: complaint._id,
+  })));
   return {
     upvoted: complaint.upvotes.some((upvote) => upvote.toString() === userId.toString()),
     upvoteCount: complaint.upvoteCount,

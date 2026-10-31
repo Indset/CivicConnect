@@ -94,14 +94,16 @@ Complaint photos are stored in Cloudinary using the `CLOUDINARY_*` variables bel
 | `SMTP_PORT` | SMTP port (usually `587`) |
 | `SMTP_SECURE` | `true` for port 465, `false` otherwise |
 | `SMTP_USER` | SMTP username |
-| `SMTP_PASSWORD` | SMTP password |
-| `EMAIL_FROM` | Sender name and address |
+| `SMTP_PASS` | SMTP password |
+| `MAIL_FROM` | Sender name and address |
 | `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name |
 | `CLOUDINARY_API_KEY` | Cloudinary API key |
 | `CLOUDINARY_API_SECRET` | Cloudinary API secret |
 | `PORT` | `5000` (Render sets this automatically) |
 | `NODE_ENV` | `production` |
 | `TRUST_PROXY` | `true` on Render |
+
+`SMTP_PASSWORD` and `EMAIL_FROM` remain supported as backward-compatible aliases.
 
 > Never commit `.env` or `.env.production` — they are in `.gitignore`.
 

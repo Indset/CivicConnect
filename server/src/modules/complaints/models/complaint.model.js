@@ -30,6 +30,17 @@ const remarkSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now, immutable: true },
 }, { _id: true });
 
+const statusHistorySchema = new mongoose.Schema({
+  status: {
+    type: String,
+    enum: ['submitted', 'under_review', 'assigned', 'in_progress', 'resolved', 'rejected', 'closed'],
+    required: true,
+  },
+  note: { type: String, trim: true, maxlength: 1000, default: '' },
+  changedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  changedAt: { type: Date, default: Date.now, immutable: true },
+}, { _id: false });
+
 const complaintSchema = new mongoose.Schema({
   complaintId: {
     type: String, unique: true, immutable: true, default: () => `CC-${crypto.randomUUID()}`,
@@ -62,6 +73,8 @@ const complaintSchema = new mongoose.Schema({
   },
   upvotes: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], default: [] },
   upvoteCount: { type: Number, min: 0, default: 0 },
+  notifiedUpvoteMilestones: { type: [Number], default: [], select: false },
+  upvoteMilestonesToNotify: { type: [Number], default: [], select: false },
   priority: { type: String, enum: ['low', 'medium', 'high', 'urgent'], default: 'medium', index: true },
   status: {
     type: String,
@@ -70,6 +83,7 @@ const complaintSchema = new mongoose.Schema({
   },
   assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   remarks: { type: [remarkSchema], default: [] },
+  statusHistory: { type: [statusHistorySchema], default: [] },
 }, { timestamps: true, versionKey: false, strict: 'throw' });
 
 complaintSchema.pre('validate', function validateCoordinates(next) {

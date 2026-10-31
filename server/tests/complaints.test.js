@@ -1,9 +1,11 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from '@jest/globals';
+import mongoose from 'mongoose';
 import { connectTestDatabase, disconnectTestDatabase } from './helpers/db.js';
 import { requestApp } from './helpers/testApp.js';
 import User from '../src/modules/auth/models/user.model.js';
 import Category from '../src/modules/categories/models/category.model.js';
 import Complaint from '../src/modules/complaints/models/complaint.model.js';
+import Notification from '../src/modules/notifications/models/notification.model.js';
 import { signAccessToken } from '../src/modules/auth/utils/jwt.js';
 
 describe('Complaint CRUD API', () => {
@@ -23,6 +25,7 @@ describe('Complaint CRUD API', () => {
     await User.deleteMany({});
     await Category.deleteMany({});
     await Complaint.deleteMany({});
+    await Notification.deleteMany({});
 
     user = await User.create({
       fullName: 'Complaint User',
@@ -45,6 +48,12 @@ describe('Complaint CRUD API', () => {
 
     expect(response.status).toBe(201);
     expect(response.body.data.complaint.title).toBe('Broken streetlight');
+    expect(response.body.data.complaint.statusHistory).toHaveLength(1);
+    expect(response.body.data.complaint.statusHistory[0]).toMatchObject({
+      status: 'submitted',
+      note: 'Complaint submitted',
+      changedBy: user.id,
+    });
   });
 
   it('creates a complaint with structured location while retaining plain-text compatibility', async () => {
@@ -209,6 +218,30 @@ describe('Complaint CRUD API', () => {
       .set('Cookie', `access_token=${token}`);
 
     expect(response.status).toBe(422);
+  });
+
+  it('notifies the complaint owner once when an upvote milestone is reached', async () => {
+    const complaint = await Complaint.create({
+      user: user.id,
+      category: category.id,
+      title: 'Frequent street flooding',
+      description: 'Rain water floods this street after every storm and blocks local residents.',
+      location: 'River Road',
+      upvotes: Array.from({ length: 9 }, () => new mongoose.Types.ObjectId()),
+      upvoteCount: 9,
+    });
+
+    await requestApp.post(`/api/v1/complaints/${complaint.id}/upvote`).set('Cookie', `access_token=${token}`).expect(200);
+    await requestApp.post(`/api/v1/complaints/${complaint.id}/upvote`).set('Cookie', `access_token=${token}`).expect(200);
+    await requestApp.post(`/api/v1/complaints/${complaint.id}/upvote`).set('Cookie', `access_token=${token}`).expect(200);
+
+    const milestoneNotifications = await Notification.find({
+      user: user.id,
+      complaint: complaint.id,
+      type: 'complaint_upvote_milestone',
+    });
+    expect(milestoneNotifications).toHaveLength(1);
+    expect(milestoneNotifications[0].message).toContain('received 10 upvotes');
   });
 
   it('lists and updates a complaint', async () => {

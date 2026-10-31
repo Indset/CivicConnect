@@ -46,4 +46,5 @@ export const assignComplaintSchema = Joi.object({
 
 export const updateComplaintStatusSchema = Joi.object({
   status: Joi.string().valid(...statusValues).required().messages({ 'any.only': 'status must be one of: submitted, under_review, assigned, in_progress, resolved, rejected, closed' }),
+  note: trimString(1, 1000, 'note').optional(),
 });

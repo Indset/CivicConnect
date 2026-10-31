@@ -1,7 +1,15 @@
 import mongoose from 'mongoose';
 import { ApiError } from '../../../utils/ApiError.js';
 
-const TYPES = ['complaint_created', 'complaint_assigned', 'complaint_status', 'complaint_resolved', 'complaint_rejected', 'admin_announcement'];
+const TYPES = [
+  'complaint_created',
+  'complaint_assigned',
+  'complaint_status',
+  'complaint_resolved',
+  'complaint_rejected',
+  'complaint_upvote_milestone',
+  'admin_announcement',
+];
 
 export const validateCreateNotification = (req, res, next) => {
   const body = req.body ?? {};

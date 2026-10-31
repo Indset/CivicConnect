@@ -34,6 +34,26 @@ import { Router } from 'express';
  *     summary: Update complaint status
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [status]
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [submitted, under_review, assigned, in_progress, resolved, rejected, closed]
+ *               note:
+ *                 type: string
+ *                 maxLength: 1000
  *     responses:
  *       '200':
  *         description: Status updated successfully

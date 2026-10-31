@@ -1,7 +1,15 @@
 import Joi from 'joi';
 import { objectId, trimString } from './common.validators.js';
 
-const notificationTypes = ['complaint_created', 'complaint_assigned', 'complaint_status', 'complaint_resolved', 'complaint_rejected', 'admin_announcement'];
+const notificationTypes = [
+  'complaint_created',
+  'complaint_assigned',
+  'complaint_status',
+  'complaint_resolved',
+  'complaint_rejected',
+  'complaint_upvote_milestone',
+  'admin_announcement',
+];
 
 export const createNotificationSchema = Joi.object({
   user: objectId.required().messages({ 'any.required': 'user is required' }),

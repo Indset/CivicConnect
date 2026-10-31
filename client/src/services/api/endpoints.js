@@ -38,7 +38,8 @@ export const categoriesApi = {
 export const adminApi = {
   dashboard: () => api.get('/admin/dashboard'),
   complaints: (params) => api.get('/admin/complaints', { params }),
-  setStatus: (id, status) => api.patch(`/admin/complaints/${id}/status`, { status }),
+  setStatus: (id, status, note = '') =>
+    api.patch(`/admin/complaints/${id}/status`, { status, note }),
   assign: (id, assignedTo) => api.post(`/admin/complaints/${id}/assign`, { assignedTo }),
   remark: (id, message) => api.post(`/admin/complaints/${id}/remarks`, { message }),
   users: (params) => api.get('/admin/users', { params }),

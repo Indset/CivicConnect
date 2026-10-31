@@ -133,12 +133,12 @@ const smtp = {
   port: positiveInteger('SMTP_PORT', 587),
   secure: booleanValue('SMTP_SECURE', false),
   user: getString('SMTP_USER'),
-  password: getString('SMTP_PASSWORD'),
-  from: getString('EMAIL_FROM'),
+  password: getString('SMTP_PASS', getString('SMTP_PASSWORD')),
+  from: getString('MAIL_FROM', getString('EMAIL_FROM')),
 };
 smtp.configured = Boolean(smtp.host && smtp.user && smtp.password && smtp.from);
 if (nodeEnv === 'production' && !smtp.configured) {
-  throw new Error('SMTP_HOST, SMTP_USER, SMTP_PASSWORD, and EMAIL_FROM are required in production');
+  throw new Error('SMTP_HOST, SMTP_USER, SMTP_PASS, and MAIL_FROM are required in production');
 }
 
 const cloudinary = {

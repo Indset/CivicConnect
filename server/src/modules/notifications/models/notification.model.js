@@ -14,7 +14,14 @@ const notificationSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['complaint_created', 'complaint_status', 'complaint_assigned', 'remark_added', 'system'],
+    enum: [
+      'complaint_created',
+      'complaint_status',
+      'complaint_assigned',
+      'complaint_upvote_milestone',
+      'remark_added',
+      'system',
+    ],
     default: 'system',
   },
   isRead: { type: Boolean, default: false },

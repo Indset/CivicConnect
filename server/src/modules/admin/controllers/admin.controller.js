@@ -31,12 +31,17 @@ export const listComplaints = async (req, res) => {
 };
 
 export const assignComplaint = async (req, res) => {
-  const complaint = await assignComplaintToUser(req.params.id, req.validatedBody.assignedTo);
+  const complaint = await assignComplaintToUser(req.params.id, req.validatedBody.assignedTo, req.user.id);
   return res.status(200).json(new ApiResponse(200, { complaint }, 'Complaint assigned successfully'));
 };
 
 export const changeStatus = async (req, res) => {
-  const complaint = await updateComplaintStatus(req.params.id, req.validatedBody.status);
+  const complaint = await updateComplaintStatus(
+    req.params.id,
+    req.validatedBody.status,
+    req.user.id,
+    req.validatedBody.note,
+  );
   return res.status(200).json(new ApiResponse(200, { complaint }, 'Complaint status updated successfully'));
 };
 

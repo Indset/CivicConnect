@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -17,6 +17,25 @@ const field =
 const maxComplaintImages = 4;
 const maxImageSize = 5 * 1024 * 1024;
 const allowedImageTypes = ['image/jpeg', 'image/png', 'image/webp'];
+const statusLabels = {
+  submitted: 'Pending',
+  under_review: 'Pending review',
+  assigned: 'Assigned',
+  in_progress: 'In Progress',
+  resolved: 'Resolved',
+  rejected: 'Rejected',
+  closed: 'Closed',
+};
+const nextStatuses = {
+  submitted: ['in_progress', 'resolved', 'rejected'],
+  under_review: ['in_progress', 'resolved', 'rejected'],
+  assigned: ['in_progress', 'resolved', 'rejected'],
+  in_progress: ['resolved', 'rejected'],
+  resolved: ['closed'],
+  rejected: ['closed'],
+  closed: [],
+};
+const notificationUpdateEvent = 'civicconnect:notifications-updated';
 const Button = ({ children, ...props }) => (
   <button
     className="rounded-lg bg-blue-700 px-4 py-2 font-medium text-white hover:bg-blue-800 disabled:opacity-60"
@@ -148,6 +167,30 @@ function Shell({ children }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [signingOut, setSigningOut] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notificationError, setNotificationError] = useState('');
+  const refreshUnreadCount = useCallback(() => {
+    notificationsApi
+      .unreadCount()
+      .then((response) => {
+        setUnreadCount(response.data.unreadCount);
+        setNotificationError('');
+      })
+      .catch((error) => setNotificationError(error.message));
+  }, []);
+
+  useEffect(() => {
+    refreshUnreadCount();
+    window.addEventListener(notificationUpdateEvent, refreshUnreadCount);
+    window.addEventListener('focus', refreshUnreadCount);
+    const intervalId = window.setInterval(refreshUnreadCount, 60000);
+    return () => {
+      window.removeEventListener(notificationUpdateEvent, refreshUnreadCount);
+      window.removeEventListener('focus', refreshUnreadCount);
+      window.clearInterval(intervalId);
+    };
+  }, [refreshUnreadCount]);
+
   const handleLogout = async () => {
     setSigningOut(true);
     await logout(); // always clears user via finally in AuthContext
@@ -164,7 +207,17 @@ function Shell({ children }) {
           <Link to="/public-feed">Public feed</Link>
           <Link to="/complaints/new">Report issue</Link>
           <Link to="/complaints/map">Map view</Link>
-          <Link to="/notifications">Notifications</Link>
+          <Link className="flex items-center gap-2" to="/notifications">
+            Notifications
+            {unreadCount > 0 && (
+              <span
+                aria-label={`${unreadCount} unread notifications`}
+                className="rounded-full bg-red-600 px-2 py-0.5 text-xs font-semibold text-white"
+              >
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
+          </Link>
           {user?.role === 'admin' && <Link to="/admin">Admin</Link>}
           <span className="ml-auto text-sm text-slate-600">{user?.fullName}</span>
           <button
@@ -176,6 +229,11 @@ function Shell({ children }) {
           </button>
         </nav>
       </header>
+      {notificationError && (
+        <p className="mx-auto max-w-6xl px-6 pt-3 text-sm text-amber-800" role="status">
+          Unread notification count unavailable: {notificationError}
+        </p>
+      )}
       <main className="mx-auto max-w-6xl p-6">{children}</main>
     </div>
   );
@@ -559,23 +617,37 @@ function ComplaintsList() {
         <div className="mt-6 rounded-xl bg-white shadow-sm">
           <ul className="divide-y">
             {complaints.map((item) => (
-              <li className="flex items-center justify-between p-4" key={item._id}>
-                <div>
-                  <Link
-                    className="font-medium text-blue-700 hover:underline"
-                    to={`/complaints/${item._id}`}
+              <li className="space-y-3 p-4" key={item._id}>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <Link
+                      className="font-medium text-blue-700 hover:underline"
+                      to={`/complaints/${item._id}`}
+                    >
+                      {item.title}
+                    </Link>
+                    <p className="text-sm text-slate-500">
+                      {getComplaintLocationAddress(item.location)}
+                    </p>
+                  </div>
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-medium ${statusStyles[item.status] ?? 'bg-slate-100 text-slate-700'}`}
                   >
-                    {item.title}
-                  </Link>
-                  <p className="text-sm text-slate-500">
-                    {getComplaintLocationAddress(item.location)}
-                  </p>
+                    {statusLabels[item.status] ?? item.status.replaceAll('_', ' ')}
+                  </span>
                 </div>
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-medium ${statusStyles[item.status] ?? 'bg-slate-100 text-slate-700'}`}
-                >
-                  {item.status.replace('_', ' ')}
-                </span>
+                {isAdmin && (
+                  <AdminComplaintStatusEditor
+                    complaint={item}
+                    onUpdated={(updated) =>
+                      setComplaints((current) =>
+                        current.map((complaint) =>
+                          complaint._id === updated._id ? updated : complaint,
+                        ),
+                      )
+                    }
+                  />
+                )}
               </li>
             ))}
             {!complaints.length && (
@@ -585,6 +657,126 @@ function ComplaintsList() {
         </div>
       )}
     </Shell>
+  );
+}
+
+function AdminComplaintStatusEditor({ complaint, onUpdated }) {
+  const [status, setStatus] = useState(complaint.status);
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const options = [complaint.status, ...(nextStatuses[complaint.status] ?? [])];
+
+  useEffect(() => setStatus(complaint.status), [complaint.status]);
+
+  const saveStatus = async (event) => {
+    event.preventDefault();
+    if (status === complaint.status) return;
+    setBusy(true);
+    setError('');
+    setSuccess('');
+    try {
+      const response = await adminApi.setStatus(complaint._id, status, note.trim());
+      onUpdated(response.data.complaint);
+      setNote('');
+      setSuccess('Status updated.');
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form
+      className="grid gap-2 rounded-lg bg-slate-50 p-3 sm:grid-cols-[minmax(10rem,1fr)_2fr_auto]"
+      onSubmit={saveStatus}
+    >
+      <label className="sr-only" htmlFor={`status-${complaint._id}`}>
+        Complaint status
+      </label>
+      <select
+        className={field}
+        id={`status-${complaint._id}`}
+        onChange={(event) => setStatus(event.target.value)}
+        value={status}
+      >
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {statusLabels[option] ?? option}
+          </option>
+        ))}
+      </select>
+      <label className="sr-only" htmlFor={`status-note-${complaint._id}`}>
+        Status update note
+      </label>
+      <textarea
+        className={field}
+        id={`status-note-${complaint._id}`}
+        maxLength={1000}
+        onChange={(event) => setNote(event.target.value)}
+        placeholder="Optional note for the complainant"
+        rows={1}
+        value={note}
+      />
+      <button
+        className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50"
+        disabled={busy || status === complaint.status}
+        type="submit"
+      >
+        {busy ? 'Saving…' : 'Update'}
+      </button>
+      {(error || success) && (
+        <p
+          className={`text-sm sm:col-span-3 ${error ? 'text-red-700' : 'text-emerald-700'}`}
+          role={error ? 'alert' : 'status'}
+        >
+          {error || success}
+        </p>
+      )}
+    </form>
+  );
+}
+
+function ComplaintStatusTimeline({ complaint }) {
+  const history = complaint.statusHistory?.length
+    ? complaint.statusHistory
+    : [{ status: complaint.status, note: 'Complaint submitted', changedAt: complaint.createdAt }];
+  const iconFor = (status) => {
+    if (status === 'resolved' || status === 'closed') return '✓';
+    if (status === 'rejected') return '×';
+    if (status === 'in_progress' || status === 'assigned') return '↻';
+    return '•';
+  };
+
+  return (
+    <section>
+      <h2 className="mb-4 text-lg font-semibold">Status timeline</h2>
+      <ol className="ml-3 border-l-2 border-slate-200">
+        {history.map((entry, index) => (
+          <li
+            className="relative pb-6 pl-7 last:pb-0"
+            key={`${entry.status}-${entry.changedAt}-${index}`}
+          >
+            <span className="absolute -left-[13px] grid h-6 w-6 place-items-center rounded-full bg-blue-100 text-sm font-bold text-blue-800">
+              {iconFor(entry.status)}
+            </span>
+            <h3 className="font-medium">
+              {statusLabels[entry.status] ?? entry.status.replaceAll('_', ' ')}
+            </h3>
+            {entry.note && (
+              <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{entry.note}</p>
+            )}
+            {entry.changedAt && (
+              <time className="mt-1 block text-xs text-slate-500" dateTime={entry.changedAt}>
+                {new Date(entry.changedAt).toLocaleString()}
+              </time>
+            )}
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }
 
@@ -622,9 +814,11 @@ function ComplaintDetails() {
             <p className="text-sm text-slate-500">{complaint.category?.name ?? 'Uncategorized'}</p>
             <h1 className="mt-1 text-2xl font-bold">{complaint.title}</h1>
             <p className="mt-2 text-sm capitalize text-slate-600">
-              {complaint.status.replaceAll('_', ' ')} · {complaint.priority} priority
+              {statusLabels[complaint.status] ?? complaint.status.replaceAll('_', ' ')} ·{' '}
+              {complaint.priority} priority
             </p>
           </header>
+          <ComplaintStatusTimeline complaint={complaint} />
           <p className="whitespace-pre-wrap">{complaint.description}</p>
           <section>
             <h2 className="font-semibold">Location</h2>
@@ -725,33 +919,59 @@ function Notifications() {
   const [items, setItems] = useState(null);
   const [error, setError] = useState('');
 
-  const load = () => {
-    notificationsApi
-      .list()
-      .then((res) => setItems(res.data.notifications))
-      .catch((err) => setError(err.message));
-  };
+  const load = useCallback(async () => {
+    try {
+      const response = await notificationsApi.list();
+      setItems(response.data.notifications);
+      setError('');
+    } catch (requestError) {
+      setError(requestError.message);
+    }
+  }, []);
 
-  useEffect(load, []);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const markRead = async (id) => {
-    await notificationsApi.markRead(id);
-    load();
+    try {
+      await notificationsApi.markRead(id);
+      setItems((current) =>
+        current.map((item) => (item._id === id ? { ...item, isRead: true } : item)),
+      );
+      window.dispatchEvent(new Event(notificationUpdateEvent));
+    } catch (requestError) {
+      setError(requestError.message);
+    }
   };
   const markAllRead = async () => {
-    await notificationsApi.markAllRead();
-    load();
+    try {
+      await notificationsApi.markAllRead();
+      setItems((current) => current.map((item) => ({ ...item, isRead: true })));
+      window.dispatchEvent(new Event(notificationUpdateEvent));
+    } catch (requestError) {
+      setError(requestError.message);
+    }
   };
   const remove = async (id) => {
-    await notificationsApi.remove(id);
-    load();
+    try {
+      await notificationsApi.remove(id);
+      setItems((current) => current.filter((item) => item._id !== id));
+      window.dispatchEvent(new Event(notificationUpdateEvent));
+    } catch (requestError) {
+      setError(requestError.message);
+    }
   };
 
   return (
     <Shell>
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Notifications</h1>
-        <button onClick={markAllRead} className="text-sm text-blue-700">
+        <button
+          disabled={!items?.some((item) => !item.isRead)}
+          onClick={markAllRead}
+          className="text-sm text-blue-700 disabled:opacity-50"
+        >
           Mark all as read
         </button>
       </div>
@@ -763,11 +983,17 @@ function Notifications() {
           {items.map((item) => (
             <li
               key={item._id}
-              className={`flex items-center justify-between p-4 ${!item.read ? 'bg-blue-50/40' : ''}`}
+              className={`flex items-center justify-between gap-4 p-4 ${!item.isRead ? 'bg-blue-50/40' : ''}`}
             >
-              <p className="text-sm">{item.message}</p>
+              <div>
+                <p className="font-medium">{item.title}</p>
+                <p className="text-sm text-slate-600">{item.message}</p>
+                <time className="mt-1 block text-xs text-slate-500" dateTime={item.createdAt}>
+                  {new Date(item.createdAt).toLocaleString()}
+                </time>
+              </div>
               <div className="flex gap-3 text-sm">
-                {!item.read && (
+                {!item.isRead && (
                   <button onClick={() => markRead(item._id)} className="text-blue-700">
                     Mark read
                   </button>

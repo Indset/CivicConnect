@@ -124,6 +124,16 @@ export const swaggerSchemas = {
         priority: { type: 'string', example: 'high' },
       },
     },
+    ComplaintStatusHistoryEntry: {
+      type: 'object',
+      required: ['status', 'changedBy', 'changedAt'],
+      properties: {
+        status: { type: 'string', enum: ['submitted', 'under_review', 'assigned', 'in_progress', 'resolved', 'rejected', 'closed'] },
+        note: { type: 'string', maxLength: 1000 },
+        changedBy: { type: 'string', format: 'objectId' },
+        changedAt: { type: 'string', format: 'date-time' },
+      },
+    },
     ErrorResponse: {
       type: 'object',
       properties: {
