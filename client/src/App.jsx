@@ -14,6 +14,7 @@ import { getComplaintCoordinates, getComplaintLocationAddress } from '@/utils/co
 import PublicFeed from '@/pages/PublicFeed';
 
 const AdminAnalyticsDashboard = lazy(() => import('@/pages/AdminAnalyticsDashboard'));
+const AwarenessPage = lazy(() => import('@/pages/Awareness'));
 
 const field =
   'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100';
@@ -210,6 +211,7 @@ function Shell({ children }) {
           <Link to="/public-feed">Public feed</Link>
           <Link to="/complaints/new">Report issue</Link>
           <Link to="/complaints/map">Map view</Link>
+          <Link to="/awareness">Awareness</Link>
           <Link className="flex items-center gap-2" to="/notifications">
             Notifications
             {unreadCount > 0 && (
@@ -1121,6 +1123,14 @@ export default function App({ mode }) {
   if (mode === 'complaint-details') return <ComplaintDetails />;
   if (mode === 'complaints-map') return <ComplaintsMapView />;
   if (mode === 'notifications') return <Notifications />;
+  if (mode === 'awareness')
+    return (
+      <Shell>
+        <Suspense fallback={<p className="text-slate-600">Loading awareness content…</p>}>
+          <AwarenessPage />
+        </Suspense>
+      </Shell>
+    );
   if (!mode)
     return (
       <main className="grid min-h-screen place-items-center bg-slate-50 p-6 text-center">

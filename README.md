@@ -142,6 +142,23 @@ Swagger UI is available at `/api/docs` when the server is running.
 
 ---
 
+## Awareness content
+
+The Awareness page provides public civic-sense tips and cleanliness-drive listings.
+Drive dates and times are stored and displayed as UTC. Signed-in users can join or
+leave upcoming drives; administrators can manage tips and drives from the page.
+To populate an empty database with sample content, first create an administrator
+account, then run this from `server/`:
+
+```bash
+npm run seed:awareness
+```
+
+The seed command uses the configured `MONGO_URI`, preserves existing records with
+the same titles, and requires an active administrator to own the seeded content.
+
+---
+
 ## Production Checklist
 
 - [ ] MongoDB Atlas cluster created and connection string copied

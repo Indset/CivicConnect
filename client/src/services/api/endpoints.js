@@ -67,6 +67,21 @@ export const notificationsApi = {
   remove: (id) => api.delete(`/notifications/${id}`),
 };
 
+export const awarenessApi = {
+  listTips: (params) => api.get('/awareness/tips', { params }),
+  getTip: (id) => api.get(`/awareness/tips/${id}`),
+  createTip: (payload) => api.post('/awareness/tips', payload),
+  updateTip: (id, payload) => api.put(`/awareness/tips/${id}`, payload),
+  deleteTip: (id) => api.delete(`/awareness/tips/${id}`),
+  listDrives: (params) => api.get('/awareness/drives', { params }),
+  getDrive: (id) => api.get(`/awareness/drives/${id}`),
+  createDrive: (payload) => api.post('/awareness/drives', payload),
+  updateDrive: (id, payload) => api.put(`/awareness/drives/${id}`, payload),
+  deleteDrive: (id) => api.delete(`/awareness/drives/${id}`),
+  joinDrive: (id) => api.post(`/awareness/drives/${id}/join`),
+  leaveDrive: (id) => api.post(`/awareness/drives/${id}/leave`),
+};
+
 export const uploadsApi = {
   single: (file) => {
     const formData = new FormData();

@@ -25,6 +25,7 @@ const options = {
       { name: 'Admin', description: 'Administrative operations' },
       { name: 'Uploads', description: 'Image upload management' },
       { name: 'AI', description: 'AI-assisted complaint categorization' },
+      { name: 'Awareness', description: 'Civic sense tips and community drives' },
     ],
     components: {
       securitySchemes: {

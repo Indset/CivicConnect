@@ -99,6 +99,14 @@ export default function AppRouter() {
         }
       />
       <Route
+        path="/awareness"
+        element={
+          <ProtectedRoute>
+            <App mode="awareness" />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/admin/*"
         element={
           <ProtectedRoute adminOnly>

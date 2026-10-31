@@ -24,6 +24,7 @@ import uploadRouter from './modules/uploads/routes/upload.routes.js';
 import notificationRouter from './modules/notifications/routes/notification.routes.js';
 import categoryRouter from './modules/categories/routes/category.routes.js';
 import aiRouter from './modules/ai/routes/ai.routes.js';
+import awarenessRouter from './modules/awareness/routes/awareness.routes.js';
 import swaggerRouter from './docs/swagger.routes.js';
 
 const app = express();
@@ -66,6 +67,7 @@ app.use('/api/v1/uploads', uploadRouter);
 app.use('/api/v1/notifications', notificationRouter);
 app.use('/api/v1/categories', categoryRouter);
 app.use('/api/v1/ai', aiRouter);
+app.use('/api/v1/awareness', awarenessRouter);
 app.use('/api/docs', swaggerRouter);
 
 app.use(notFoundHandler);
