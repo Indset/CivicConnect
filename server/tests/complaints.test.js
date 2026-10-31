@@ -47,6 +47,85 @@ describe('Complaint CRUD API', () => {
     expect(response.body.data.complaint.title).toBe('Broken streetlight');
   });
 
+  it('creates a complaint with structured location while retaining plain-text compatibility', async () => {
+    const response = await requestApp.post('/api/v1/complaints').set('Cookie', `access_token=${token}`).send({
+      category: category.id,
+      title: 'Blocked drainage',
+      description: 'The storm drain is blocked and water is pooling across the road.',
+      location: { address: 'Central Market, Ward 4', coordinates: { lat: 28.6139, lng: 77.209 } },
+    });
+
+    expect(response.status).toBe(201);
+    expect(response.body.data.complaint.location).toEqual({
+      address: 'Central Market, Ward 4',
+      coordinates: { lat: 28.6139, lng: 77.209 },
+    });
+  });
+
+  it('parses structured locations from multipart form data without requiring images', async () => {
+    const response = await requestApp
+      .post('/api/v1/complaints')
+      .set('Cookie', `access_token=${token}`)
+      .field('category', category.id)
+      .field('title', 'Damaged traffic signal')
+      .field('description', 'The traffic signal at the junction is damaged and not working correctly.')
+      .field('location', JSON.stringify({ address: 'Central Junction' }))
+      .field('priority', 'medium');
+
+    expect(response.status).toBe(201);
+    expect(response.body.data.complaint.location).toEqual({ address: 'Central Junction' });
+  });
+
+  it('rejects unsupported image types before attempting an upload', async () => {
+    const response = await requestApp
+      .post('/api/v1/complaints')
+      .set('Cookie', `access_token=${token}`)
+      .attach('images', Buffer.from('not an image'), {
+        filename: 'report.gif',
+        contentType: 'image/gif',
+      });
+
+    expect(response.status).toBe(422);
+  });
+
+  it('rejects image files with unsupported content', async () => {
+    const response = await requestApp
+      .post('/api/v1/complaints')
+      .set('Cookie', `access_token=${token}`)
+      .attach('images', Buffer.from('not a PNG'), {
+        filename: 'report.png',
+        contentType: 'image/png',
+      });
+
+    expect(response.status).toBe(422);
+  });
+
+  it('rejects image files larger than 5 MB', async () => {
+    const response = await requestApp
+      .post('/api/v1/complaints')
+      .set('Cookie', `access_token=${token}`)
+      .attach('images', Buffer.alloc(5 * 1024 * 1024 + 1), {
+        filename: 'report.png',
+        contentType: 'image/png',
+      });
+
+    expect(response.status).toBe(413);
+  });
+
+  it('limits complaint image uploads to four files', async () => {
+    const pngHeader = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    let request = requestApp.post('/api/v1/complaints').set('Cookie', `access_token=${token}`);
+    for (let index = 0; index < 5; index += 1) {
+      request = request.attach('images', pngHeader, {
+        filename: `report-${index}.png`,
+        contentType: 'image/png',
+      });
+    }
+
+    const response = await request;
+    expect(response.status).toBe(413);
+  });
+
   it('lists and updates a complaint', async () => {
     const complaint = await Complaint.create({
       user: user.id,
@@ -54,11 +133,22 @@ describe('Complaint CRUD API', () => {
       title: 'Pothole issue',
       description: 'The pothole near the school entrance is worsening rapidly.',
       location: 'School Road',
+      latitude: 28.6139,
+      longitude: 77.209,
     });
 
     const listResponse = await requestApp.get('/api/v1/complaints').set('Authorization', `Bearer ${token}`);
     expect(listResponse.status).toBe(200);
     expect(listResponse.body.data.complaints).toHaveLength(1);
+
+    const mapResponse = await requestApp
+      .get('/api/v1/complaints/map')
+      .set('Cookie', `access_token=${token}`);
+    expect(mapResponse.status).toBe(200);
+    expect(mapResponse.body.data.complaints[0]).toMatchObject({
+      _id: complaint.id,
+      location: { address: 'School Road', coordinates: { lat: 28.6139, lng: 77.209 } },
+    });
 
     const updateResponse = await requestApp.put(`/api/v1/complaints/${complaint.id}`).set('Authorization', `Bearer ${token}`).send({
       title: 'Pothole issue updated',

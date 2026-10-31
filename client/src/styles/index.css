@@ -24,3 +24,18 @@ textarea,
 select {
   font: inherit;
 }
+
+.civic-map-marker {
+  border: 0;
+  background: transparent;
+}
+
+.civic-map-marker span {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border: 3px solid white;
+  border-radius: 50% 50% 50% 0;
+  box-shadow: 0 1px 5px #0f172a99;
+  transform: rotate(-45deg);
+}

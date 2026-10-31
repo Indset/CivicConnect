@@ -15,8 +15,16 @@ export const complaintsApi = {
   list: (params) => api.get('/complaints', { params }),
   mine: (params) => api.get('/complaints/my', { params }),
   latest: (params) => api.get('/complaints/latest', { params }),
+  map: () => api.get('/complaints/map'),
   get: (id) => api.get(`/complaints/${id}`),
-  create: (payload) => api.post('/complaints', payload),
+  create: (payload) =>
+    api.post(
+      '/complaints',
+      payload,
+      typeof FormData !== 'undefined' && payload instanceof FormData
+        ? { headers: { 'Content-Type': 'multipart/form-data' } }
+        : undefined,
+    ),
   update: (id, payload) => api.put(`/complaints/${id}`, payload),
   remove: (id) => api.delete(`/complaints/${id}`),
 };

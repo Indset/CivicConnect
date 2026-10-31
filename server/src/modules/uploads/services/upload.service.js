@@ -46,8 +46,21 @@ export const uploadSingleImageToCloudinary = async (file, folder = 'civicconnect
 
 export const uploadMultipleImagesToCloudinary = async (files, folder = 'civicconnect/uploads') => {
   if (!Array.isArray(files) || files.length === 0) throw new ApiError(400, 'No image files provided');
-  const uploads = await Promise.all(files.map((file) => uploadSingleImageToCloudinary(file, folder)));
-  return uploads;
+  const uploads = await Promise.allSettled(files.map((file) => uploadSingleImageToCloudinary(file, folder)));
+  const completed = uploads.filter((result) => result.status === 'fulfilled').map((result) => result.value);
+  const failed = uploads.find((result) => result.status === 'rejected');
+  if (failed) {
+    try {
+      const cleanupResults = await deleteUnusedImages(completed.map((image) => image.publicId));
+      if (cleanupResults.some((result) => !result)) {
+        throw new Error('One or more uploaded images could not be deleted');
+      }
+    } catch (error) {
+      throw new ApiError(502, 'Image upload failed and cleanup was incomplete', [], { cause: error });
+    }
+    throw failed.reason;
+  }
+  return completed;
 };
 
 export const deleteImageFromCloudinary = async (publicId) => {

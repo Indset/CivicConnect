@@ -13,6 +13,29 @@ import { Router } from 'express';
  *         application/json:
  *           schema:
  *             $ref: '#/components/schemas/CreateComplaintRequest'
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required: [category, title, description, location]
+ *             properties:
+ *               category:
+ *                 type: string
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               location:
+ *                 type: string
+ *                 description: JSON-encoded address and optional coordinates object
+ *                 example: '{"address":"Main Park Road","coordinates":{"lat":28.6139,"lng":77.209}}'
+ *               priority:
+ *                 type: string
+ *               images:
+ *                 type: array
+ *                 maxItems: 4
+ *                 items:
+ *                   type: string
+ *                   format: binary
  *     responses:
  *       '201':
  *         description: Complaint created successfully
@@ -72,6 +95,15 @@ import { Router } from 'express';
  *     responses:
  *       '200':
  *         description: Latest complaints retrieved successfully
+ * /complaints/map:
+ *   get:
+ *     tags: [Complaints]
+ *     summary: List complaints with map coordinates
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       '200':
+ *         description: Geolocated complaints retrieved successfully
  * /complaints/{id}:
  *   get:
  *     tags: [Complaints]
@@ -124,24 +156,25 @@ import { Router } from 'express';
  */
 import { authenticate } from '../../auth/middleware/auth.middleware.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
-import { create, getOne, latest, list, mine, remove, search, update } from '../controllers/complaint.controller.js';
+import { create, getMap, getOne, latest, list, mine, remove, search, update } from '../controllers/complaint.controller.js';
 import {
+  parseMultipartLocation,
   validateComplaintId,
   validateComplaintQuery,
-  validateCreateComplaint,
-  validateUpdateComplaint,
 } from '../validators/complaint.validator.js';
 import { validate } from '../../../middlewares/validation/validation.middleware.js';
 import { createComplaintSchema, updateComplaintSchema } from '../../../validators/complaint.validators.js';
+import { uploadComplaintImagesWithValidation } from '../../uploads/middleware/upload.middleware.js';
 
 const router = Router();
 router.use(authenticate);
 
-router.post('/', validate(createComplaintSchema), asyncHandler(create));
+router.post('/', uploadComplaintImagesWithValidation, parseMultipartLocation, validate(createComplaintSchema), asyncHandler(create));
 router.get('/', validateComplaintQuery, asyncHandler(list));
 router.get('/search', validateComplaintQuery, asyncHandler(search));
 router.get('/my', validateComplaintQuery, asyncHandler(mine));
 router.get('/latest', validateComplaintQuery, asyncHandler(latest));
+router.get('/map', asyncHandler(getMap));
 router.get('/:id', validateComplaintId, asyncHandler(getOne));
 router.put('/:id', validateComplaintId, validate(updateComplaintSchema), asyncHandler(update));
 router.delete('/:id', validateComplaintId, asyncHandler(remove));

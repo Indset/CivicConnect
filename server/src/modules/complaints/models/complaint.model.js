@@ -9,6 +9,18 @@ const imageSchema = new mongoose.Schema({
   publicId: { type: String, trim: true, maxlength: 255, default: '' },
 }, { _id: false });
 
+const isValidLocation = (location) => {
+  if (typeof location === 'string') return location.trim().length >= 3 && location.trim().length <= 500;
+  if (!location || typeof location !== 'object' || Array.isArray(location)) return false;
+  if (typeof location.address !== 'string' || location.address.trim().length < 3 || location.address.trim().length > 500) {
+    return false;
+  }
+  if (location.coordinates === undefined) return true;
+  const { lat, lng } = location.coordinates ?? {};
+  return Number.isFinite(lat) && lat >= -90 && lat <= 90
+    && Number.isFinite(lng) && lng >= -180 && lng <= 180;
+};
+
 const remarkSchema = new mongoose.Schema({
   message: {
     type: String, required: [true, 'Remark message is required'], trim: true,
@@ -38,14 +50,15 @@ const complaintSchema = new mongoose.Schema({
     maxlength: [5000, 'Description cannot exceed 5000 characters'],
   },
   location: {
-    type: String, required: [true, 'Location is required'], trim: true,
-    minlength: [3, 'Location must be at least 3 characters'], maxlength: [500, 'Location cannot exceed 500 characters'],
+    type: mongoose.Schema.Types.Mixed,
+    required: [true, 'Location is required'],
+    validate: { validator: isValidLocation, message: 'Location must include a valid address and optional coordinates' },
   },
   latitude: { type: Number, min: [-90, 'Latitude cannot be below -90'], max: [90, 'Latitude cannot exceed 90'] },
   longitude: { type: Number, min: [-180, 'Longitude cannot be below -180'], max: [180, 'Longitude cannot exceed 180'] },
   images: {
     type: [imageSchema], default: [],
-    validate: { validator: (images) => images.length <= 10, message: 'A complaint can contain at most 10 images' },
+    validate: { validator: (images) => images.length <= 4, message: 'A complaint can contain at most 4 images' },
   },
   priority: { type: String, enum: ['low', 'medium', 'high', 'urgent'], default: 'medium', index: true },
   status: {
@@ -71,6 +84,7 @@ complaintSchema.index({ category: 1, status: 1, createdAt: -1 });
 complaintSchema.index({ assignedTo: 1, status: 1, priority: -1 }, { sparse: true });
 complaintSchema.index({ status: 1, priority: -1, createdAt: -1 });
 complaintSchema.index({ latitude: 1, longitude: 1 }, { sparse: true });
+complaintSchema.index({ 'location.coordinates.lat': 1, 'location.coordinates.lng': 1 }, { sparse: true });
 complaintSchema.index({ title: 'text', description: 'text', location: 'text' }, { weights: { title: 5, location: 3, description: 1 } });
 
 export default mongoose.models.Complaint ?? mongoose.model('Complaint', complaintSchema);

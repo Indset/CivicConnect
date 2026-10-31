@@ -32,6 +32,8 @@ Or run with Docker (includes local MongoDB):
 docker compose up --build
 ```
 
+Complaint photos are stored in Cloudinary using the `CLOUDINARY_*` variables below. Maps use OpenStreetMap tiles and Nominatim reverse geocoding; location access requires browser permission (and HTTPS outside localhost), while manual address entry remains available.
+
 ---
 
 ## Deployment

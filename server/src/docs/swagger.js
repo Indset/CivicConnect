@@ -37,7 +37,7 @@ const options = {
     },
     security: [{ bearerAuth: [] }],
   },
-  apis: [path.join(__dirname, '../modules/**/*.js')],
+  apis: [path.join(__dirname, '../modules/**/*.js').replace(/\\/g, '/')],
 };
 
 export const swaggerSpec = swaggerJsdoc(options);

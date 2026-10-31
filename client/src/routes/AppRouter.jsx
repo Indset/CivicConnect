@@ -59,6 +59,22 @@ export default function AppRouter() {
         }
       />
       <Route
+        path="/complaints/map"
+        element={
+          <ProtectedRoute>
+            <App mode="complaints-map" />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/complaints/:id"
+        element={
+          <ProtectedRoute>
+            <App mode="complaint-details" />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/profile"
         element={
           <ProtectedRoute>

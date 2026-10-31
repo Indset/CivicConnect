@@ -1,15 +1,50 @@
 import { ApiResponse } from '../../../utils/ApiResponse.js';
+import logger from '../../../utils/logger.js';
+import {
+  deleteUnusedImages,
+  uploadMultipleImagesToCloudinary,
+} from '../../uploads/services/upload.service.js';
 import {
   createComplaint,
   deleteComplaint,
   getComplaint,
+  listMapComplaints,
   listComplaints,
   updateComplaint,
 } from '../services/complaint.service.js';
 
 export const create = async (req, res) => {
-  const complaint = await createComplaint(req.user.id, req.validatedBody);
+  const images = req.files?.length
+    ? await uploadMultipleImagesToCloudinary(req.files, 'civicconnect/complaints')
+    : [];
+  let complaint;
+  try {
+    complaint = await createComplaint(req.user.id, { ...req.validatedBody, images });
+  } catch (error) {
+    if (images.length) {
+      try {
+        const cleanupResults = await deleteUnusedImages(images.map((image) => image.publicId));
+        if (cleanupResults.some((result) => !result)) {
+          logger.error('Failed to clean up complaint images after creation failed', {
+            imageCount: images.length,
+            failedCleanupCount: cleanupResults.filter((result) => !result).length,
+          });
+        }
+      } catch (cleanupError) {
+        logger.error('Failed to clean up complaint images after creation failed', {
+          error: cleanupError.message,
+          imageCount: images.length,
+        });
+      }
+    }
+    throw error;
+  }
   return res.status(201).json(new ApiResponse(201, { complaint }, 'Complaint created successfully'));
+};
+
+export const getMap = async (req, res) => {
+  const complaints = await listMapComplaints();
+  return res.status(200).json(new ApiResponse(200, { complaints }, 'Map complaints retrieved successfully'));
 };
 
 export const list = async (req, res) => {

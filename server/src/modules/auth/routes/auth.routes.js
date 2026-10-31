@@ -43,7 +43,6 @@ import { Router } from 'express';
  *     responses:
  *       '200':
  *         description: Profile fetched successfully
- * /auth/me:
  *   patch:
  *     tags: [Auth]
  *     summary: Update profile

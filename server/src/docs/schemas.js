@@ -59,10 +59,41 @@ export const swaggerSchemas = {
         category: { type: 'string', example: '507f1f77bcf86cd799439011' },
         title: { type: 'string', example: 'Broken streetlight near park' },
         description: { type: 'string', example: 'The streetlight near the main park entrance has been broken for over a week.' },
-        location: { type: 'string', example: 'Main Park Road, Sector 7' },
+        location: {
+          oneOf: [
+            { type: 'string', example: 'Main Park Road, Sector 7' },
+            {
+              type: 'object',
+              required: ['address'],
+              properties: {
+                address: { type: 'string', example: 'Main Park Road, Sector 7' },
+                coordinates: {
+                  type: 'object',
+                  required: ['lat', 'lng'],
+                  properties: {
+                    lat: { type: 'number', example: 28.6139 },
+                    lng: { type: 'number', example: 77.209 },
+                  },
+                },
+              },
+            },
+          ],
+        },
         latitude: { type: 'number', example: 28.6139 },
         longitude: { type: 'number', example: 77.2090 },
         priority: { type: 'string', example: 'high' },
+        images: {
+          type: 'array',
+          maxItems: 4,
+          items: {
+            type: 'object',
+            required: ['url'],
+            properties: {
+              url: { type: 'string', format: 'uri' },
+              publicId: { type: 'string' },
+            },
+          },
+        },
       },
     },
     UpdateComplaintRequest: {
@@ -70,7 +101,26 @@ export const swaggerSchemas = {
       properties: {
         title: { type: 'string', example: 'Broken streetlight near park' },
         description: { type: 'string', example: 'The streetlight near the main park entrance has been broken for over a week.' },
-        location: { type: 'string', example: 'Main Park Road, Sector 7' },
+        location: {
+          oneOf: [
+            { type: 'string', example: 'Main Park Road, Sector 7' },
+            {
+              type: 'object',
+              required: ['address'],
+              properties: {
+                address: { type: 'string', example: 'Main Park Road, Sector 7' },
+                coordinates: {
+                  type: 'object',
+                  required: ['lat', 'lng'],
+                  properties: {
+                    lat: { type: 'number', example: 28.6139 },
+                    lng: { type: 'number', example: 77.209 },
+                  },
+                },
+              },
+            },
+          ],
+        },
         priority: { type: 'string', example: 'high' },
       },
     },

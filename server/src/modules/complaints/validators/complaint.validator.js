@@ -4,48 +4,20 @@ import { ApiError } from '../../../utils/ApiError.js';
 const STATUSES = ['submitted', 'under_review', 'assigned', 'in_progress', 'resolved', 'rejected', 'closed'];
 const PRIORITIES = ['low', 'medium', 'high', 'urgent'];
 const SORT_FIELDS = ['createdAt', 'updatedAt', 'title', 'status', 'priority'];
-const BODY_FIELDS = ['category', 'title', 'description', 'location', 'latitude', 'longitude', 'images', 'priority'];
 
-const validateImage = (image, index, errors) => {
-  if (!image || typeof image !== 'object' || Array.isArray(image)) return errors.push(`images[${index}] must be an object`);
-  if (typeof image.url !== 'string' || !/^https?:\/\//i.test(image.url) || image.url.length > 2048) errors.push(`images[${index}].url must be a valid HTTP(S) URL`);
-  if (image.publicId !== undefined && (typeof image.publicId !== 'string' || image.publicId.length > 255)) errors.push(`images[${index}].publicId is invalid`);
-};
-
-const validateBody = ({ partial }) => (req, res, next) => {
-  const body = req.body ?? {};
-  const errors = [];
-  const unknown = Object.keys(body).filter((field) => !BODY_FIELDS.includes(field));
-  if (unknown.length) errors.push(`Unsupported fields: ${unknown.join(', ')}`);
-  const required = ['category', 'title', 'description', 'location'];
-  if (!partial) required.forEach((field) => { if (body[field] === undefined || body[field] === '') errors.push(`${field} is required`); });
-  if (partial && !BODY_FIELDS.some((field) => body[field] !== undefined)) errors.push('Provide at least one field to update');
-
-  if (body.category !== undefined && !mongoose.isValidObjectId(body.category)) errors.push('category must be a valid ID');
-  if (body.title !== undefined && (typeof body.title !== 'string' || body.title.trim().length < 5 || body.title.trim().length > 150)) errors.push('title must be 5-150 characters');
-  if (body.description !== undefined && (typeof body.description !== 'string' || body.description.trim().length < 20 || body.description.trim().length > 5000)) errors.push('description must be 20-5000 characters');
-  if (body.location !== undefined && (typeof body.location !== 'string' || body.location.trim().length < 3 || body.location.trim().length > 500)) errors.push('location must be 3-500 characters');
-  if (body.priority !== undefined && !PRIORITIES.includes(body.priority)) errors.push(`priority must be one of: ${PRIORITIES.join(', ')}`);
-  if (body.latitude !== undefined && (typeof body.latitude !== 'number' || body.latitude < -90 || body.latitude > 90)) errors.push('latitude must be between -90 and 90');
-  if (body.longitude !== undefined && (typeof body.longitude !== 'number' || body.longitude < -180 || body.longitude > 180)) errors.push('longitude must be between -180 and 180');
-  const hasLatitude = body.latitude !== undefined;
-  const hasLongitude = body.longitude !== undefined;
-  if ((hasLatitude || hasLongitude) && (hasLatitude !== hasLongitude)) errors.push('latitude and longitude must be provided together');
-  if (body.images !== undefined) {
-    if (!Array.isArray(body.images) || body.images.length > 10) errors.push('images must be an array containing at most 10 items');
-    else body.images.forEach((image, index) => validateImage(image, index, errors));
+export const parseMultipartLocation = (req, res, next) => {
+  if (req.is('multipart/form-data') && typeof req.body?.location === 'string') {
+    try {
+      const location = JSON.parse(req.body.location);
+      if (location && typeof location === 'object' && !Array.isArray(location)) {
+        req.body.location = location;
+      }
+    } catch {
+      return next(new ApiError(422, 'Location must be valid JSON'));
+    }
   }
-  if (errors.length) return next(new ApiError(422, 'Complaint validation failed', errors));
-
-  req.validatedBody = Object.fromEntries(BODY_FIELDS.filter((field) => body[field] !== undefined).map((field) => {
-    const value = typeof body[field] === 'string' ? body[field].trim() : body[field];
-    return [field, value];
-  }));
   return next();
 };
-
-export const validateCreateComplaint = validateBody({ partial: false });
-export const validateUpdateComplaint = validateBody({ partial: true });
 
 export const validateComplaintId = (req, res, next) => {
   const { id } = req.params;
@@ -81,4 +53,3 @@ export const validateComplaintQuery = (req, res, next) => {
   };
   return next();
 };
-

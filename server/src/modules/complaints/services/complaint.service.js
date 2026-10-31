@@ -32,6 +32,40 @@ export const createComplaint = async (ownerId, data) => {
   return Complaint.findById(complaint._id).populate(population).lean();
 };
 
+export const listMapComplaints = async () => {
+  const complaints = await Complaint.find({
+    $or: [
+      { 'location.coordinates.lat': { $type: 'number' }, 'location.coordinates.lng': { $type: 'number' } },
+      { latitude: { $type: 'number' }, longitude: { $type: 'number' } },
+    ],
+  })
+    .select('complaintId title category status location latitude longitude')
+    .populate({ path: 'category', select: 'name' })
+    .lean();
+
+  return complaints.map((complaint) => {
+    const storedCoordinates = typeof complaint.location === 'object'
+      ? complaint.location?.coordinates
+      : null;
+    const coordinates = storedCoordinates ?? (
+      Number.isFinite(complaint.latitude) && Number.isFinite(complaint.longitude)
+        ? { lat: complaint.latitude, lng: complaint.longitude }
+        : undefined
+    );
+    const address = typeof complaint.location === 'string'
+      ? complaint.location
+      : complaint.location?.address;
+    return {
+      _id: complaint._id,
+      complaintId: complaint.complaintId,
+      title: complaint.title,
+      category: complaint.category,
+      status: complaint.status,
+      location: { address, ...(coordinates ? { coordinates } : {}) },
+    };
+  });
+};
+
 export const listComplaints = async (options, ownerId = null) => {
   const { search, status, category, priority, fromDate, toDate, page, limit, sortBy, sortOrder } = options;
   const filter = {};
