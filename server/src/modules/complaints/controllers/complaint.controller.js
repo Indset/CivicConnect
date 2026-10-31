@@ -10,6 +10,8 @@ import {
   getComplaint,
   listMapComplaints,
   listComplaints,
+  listPublicComplaints,
+  toggleComplaintUpvote,
   updateComplaint,
 } from '../services/complaint.service.js';
 
@@ -45,6 +47,16 @@ export const create = async (req, res) => {
 export const getMap = async (req, res) => {
   const complaints = await listMapComplaints();
   return res.status(200).json(new ApiResponse(200, { complaints }, 'Map complaints retrieved successfully'));
+};
+
+export const publicFeed = async (req, res) => {
+  const result = await listPublicComplaints(req.validatedQuery, req.user.id);
+  return res.status(200).json(new ApiResponse(200, result, 'Public complaints retrieved successfully'));
+};
+
+export const toggleUpvote = async (req, res) => {
+  const result = await toggleComplaintUpvote(req.params.id, req.user.id);
+  return res.status(200).json(new ApiResponse(200, result, 'Complaint upvote updated successfully'));
 };
 
 export const list = async (req, res) => {

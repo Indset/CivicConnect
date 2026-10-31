@@ -16,6 +16,8 @@ export const complaintsApi = {
   mine: (params) => api.get('/complaints/my', { params }),
   latest: (params) => api.get('/complaints/latest', { params }),
   map: () => api.get('/complaints/map'),
+  public: (params) => api.get('/complaints/public', { params }),
+  toggleUpvote: (id) => api.post(`/complaints/${id}/upvote`),
   get: (id) => api.get(`/complaints/${id}`),
   create: (payload) =>
     api.post(

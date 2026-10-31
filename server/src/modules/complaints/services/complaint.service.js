@@ -66,6 +66,78 @@ export const listMapComplaints = async () => {
   });
 };
 
+export const toggleComplaintUpvote = async (id, userId) => {
+  const userObjectId = new mongoose.Types.ObjectId(userId);
+  const currentUpvotes = { $ifNull: ['$upvotes', []] };
+  const alreadyUpvoted = { $in: [userObjectId, currentUpvotes] };
+  const updatedUpvotes = {
+    $cond: [
+      alreadyUpvoted,
+      { $setDifference: [currentUpvotes, [userObjectId]] },
+      { $setUnion: [currentUpvotes, [userObjectId]] },
+    ],
+  };
+  const complaint = await Complaint.findOneAndUpdate(
+    identifierFilter(id),
+    [{
+      $set: {
+        upvotes: updatedUpvotes,
+        upvoteCount: { $size: updatedUpvotes },
+      },
+    }],
+    { new: true, projection: { upvotes: 1, upvoteCount: 1 } },
+  ).lean();
+
+  if (!complaint) throw new ApiError(404, 'Complaint not found');
+  return {
+    upvoted: complaint.upvotes.some((upvote) => upvote.toString() === userId.toString()),
+    upvoteCount: complaint.upvoteCount,
+  };
+};
+
+export const listPublicComplaints = async (options, userId) => {
+  const { category, status, search, page, limit, sort } = options;
+  const filter = {};
+  if (category) filter.category = category;
+  if (status) filter.status = status;
+  if (search) filter.$text = { $search: search };
+
+  const sortBy = sort === 'most_upvoted'
+    ? { upvoteCount: -1, createdAt: -1, _id: -1 }
+    : { createdAt: -1, _id: -1 };
+  const skip = (page - 1) * limit;
+  const userObjectId = new mongoose.Types.ObjectId(userId);
+  const [complaints, total] = await Promise.all([
+    Complaint.find(filter)
+      .sort(sortBy)
+      .skip(skip)
+      .limit(limit)
+      .select('complaintId title description category status priority location images createdAt upvotes upvoteCount')
+      .populate({ path: 'category', select: 'name icon' })
+      .lean(),
+    Complaint.countDocuments(filter),
+  ]);
+
+  return {
+    complaints: complaints.map((complaint) => {
+      const { upvotes = [], ...publicComplaint } = complaint;
+      return {
+        ...publicComplaint,
+        upvoteCount: complaint.upvoteCount ?? upvotes.length,
+        hasUpvoted: upvotes.some((upvote) => upvote.equals(userObjectId)),
+      };
+    }),
+    pagination: {
+      page,
+      limit,
+      total,
+      pages: Math.ceil(total / limit),
+      hasNextPage: page * limit < total,
+      hasPreviousPage: page > 1,
+    },
+  };
+};
+
 export const listComplaints = async (options, ownerId = null) => {
   const { search, status, category, priority, fromDate, toDate, page, limit, sortBy, sortOrder } = options;
   const filter = {};

@@ -53,3 +53,34 @@ export const validateComplaintQuery = (req, res, next) => {
   };
   return next();
 };
+
+export const validatePublicFeedQuery = (req, res, next) => {
+  const allowed = ['category', 'status', 'search', 'page', 'limit', 'sort'];
+  const errors = Object.keys(req.query)
+    .filter((key) => !allowed.includes(key))
+    .map((key) => `Unsupported query parameter: ${key}`);
+  const page = Number.parseInt(req.query.page ?? '1', 10);
+  const limit = Number.parseInt(req.query.limit ?? '12', 10);
+
+  if (!Number.isInteger(page) || page < 1) errors.push('page must be a positive integer');
+  if (!Number.isInteger(limit) || limit < 1 || limit > 100) errors.push('limit must be between 1 and 100');
+  if (req.query.category && !mongoose.isValidObjectId(req.query.category)) errors.push('category must be a valid ID');
+  if (req.query.status && !STATUSES.includes(req.query.status)) errors.push(`status must be one of: ${STATUSES.join(', ')}`);
+  if (req.query.search && (typeof req.query.search !== 'string' || req.query.search.trim().length > 100)) {
+    errors.push('search cannot exceed 100 characters');
+  }
+  if (req.query.sort && !['latest', 'most_upvoted'].includes(req.query.sort)) {
+    errors.push('sort must be latest or most_upvoted');
+  }
+  if (errors.length) return next(new ApiError(422, 'Invalid public feed query', errors));
+
+  req.validatedQuery = {
+    category: req.query.category,
+    status: req.query.status,
+    search: req.query.search?.trim(),
+    page,
+    limit,
+    sort: req.query.sort ?? 'latest',
+  };
+  return next();
+};

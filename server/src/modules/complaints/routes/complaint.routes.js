@@ -104,6 +104,61 @@ import { Router } from 'express';
  *     responses:
  *       '200':
  *         description: Geolocated complaints retrieved successfully
+ * /complaints/public:
+ *   get:
+ *     tags: [Complaints]
+ *     summary: Get the paginated public complaint feed
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: category
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [submitted, under_review, assigned, in_progress, resolved, rejected, closed]
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *           maxLength: 100
+ *       - in: query
+ *         name: sort
+ *         schema:
+ *           type: string
+ *           enum: [latest, most_upvoted]
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *     responses:
+ *       '200':
+ *         description: Public complaints retrieved successfully
+ * /complaints/{id}/upvote:
+ *   post:
+ *     tags: [Complaints]
+ *     summary: Toggle an upvote on a complaint
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '200':
+ *         description: Upvote state updated
  * /complaints/{id}:
  *   get:
  *     tags: [Complaints]
@@ -156,11 +211,24 @@ import { Router } from 'express';
  */
 import { authenticate } from '../../auth/middleware/auth.middleware.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
-import { create, getMap, getOne, latest, list, mine, remove, search, update } from '../controllers/complaint.controller.js';
+import {
+  create,
+  getMap,
+  getOne,
+  latest,
+  list,
+  mine,
+  publicFeed,
+  remove,
+  search,
+  toggleUpvote,
+  update,
+} from '../controllers/complaint.controller.js';
 import {
   parseMultipartLocation,
   validateComplaintId,
   validateComplaintQuery,
+  validatePublicFeedQuery,
 } from '../validators/complaint.validator.js';
 import { validate } from '../../../middlewares/validation/validation.middleware.js';
 import { createComplaintSchema, updateComplaintSchema } from '../../../validators/complaint.validators.js';
@@ -175,6 +243,8 @@ router.get('/search', validateComplaintQuery, asyncHandler(search));
 router.get('/my', validateComplaintQuery, asyncHandler(mine));
 router.get('/latest', validateComplaintQuery, asyncHandler(latest));
 router.get('/map', asyncHandler(getMap));
+router.get('/public', validatePublicFeedQuery, asyncHandler(publicFeed));
+router.post('/:id/upvote', validateComplaintId, asyncHandler(toggleUpvote));
 router.get('/:id', validateComplaintId, asyncHandler(getOne));
 router.put('/:id', validateComplaintId, validate(updateComplaintSchema), asyncHandler(update));
 router.delete('/:id', validateComplaintId, asyncHandler(remove));

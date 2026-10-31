@@ -126,6 +126,91 @@ describe('Complaint CRUD API', () => {
     expect(response.status).toBe(413);
   });
 
+  it('toggles upvotes atomically and keeps the count synchronized', async () => {
+    const complaint = await Complaint.create({
+      user: user.id,
+      category: category.id,
+      title: 'Broken public bench',
+      description: 'The public bench near the park entrance is broken and unsafe to use.',
+      location: 'Park Entrance',
+    });
+
+    const [first, second] = await Promise.all([
+      requestApp.post(`/api/v1/complaints/${complaint.id}/upvote`).set('Cookie', `access_token=${token}`),
+      requestApp.post(`/api/v1/complaints/${complaint.id}/upvote`).set('Cookie', `access_token=${token}`),
+    ]);
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    const updated = await Complaint.findById(complaint.id);
+    expect(updated.upvotes).toHaveLength(0);
+    expect(updated.upvoteCount).toBe(0);
+
+    const upvoteResponse = await requestApp
+      .post(`/api/v1/complaints/${complaint.id}/upvote`)
+      .set('Cookie', `access_token=${token}`);
+    expect(upvoteResponse.body.data).toEqual({ upvoted: true, upvoteCount: 1 });
+  });
+
+  it('returns filtered, paginated public complaints with the current user upvote state', async () => {
+    const upvoted = await Complaint.create({
+      user: user.id,
+      category: category.id,
+      title: 'Roadside pothole',
+      description: 'A deep pothole on the road is creating a dangerous hazard for residents.',
+      location: 'Main Road',
+      status: 'submitted',
+      upvotes: [user.id],
+      upvoteCount: 1,
+    });
+    const otherPothole = await Complaint.create({
+      user: user.id,
+      category: category.id,
+      title: 'Another pothole report',
+      description: 'Another pothole has appeared near the bus stop and needs attention.',
+      location: 'Bus Stop Road',
+      status: 'submitted',
+    });
+
+    const response = await requestApp
+      .get(`/api/v1/complaints/public?category=${category.id}&status=submitted&search=pothole&sort=most_upvoted&page=1&limit=1`)
+      .set('Cookie', `access_token=${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.complaints).toHaveLength(1);
+    expect(response.body.data.complaints[0]).toMatchObject({
+      _id: upvoted.id,
+      upvoteCount: 1,
+      hasUpvoted: true,
+    });
+    expect(response.body.data.complaints[0]).not.toHaveProperty('upvotes');
+    expect(response.body.data.pagination).toMatchObject({
+      page: 1,
+      limit: 1,
+      total: 2,
+      hasNextPage: true,
+    });
+
+    const nextPage = await requestApp
+      .get(`/api/v1/complaints/public?category=${category.id}&status=submitted&search=pothole&sort=most_upvoted&page=2&limit=1`)
+      .set('Cookie', `access_token=${token}`);
+    expect(nextPage.status).toBe(200);
+    expect(nextPage.body.data.complaints[0]).toMatchObject({
+      _id: otherPothole.id,
+      upvoteCount: 0,
+      hasUpvoted: false,
+    });
+    expect(nextPage.body.data.pagination.hasNextPage).toBe(false);
+  });
+
+  it('rejects invalid public feed filters', async () => {
+    const response = await requestApp
+      .get('/api/v1/complaints/public?sort=unsupported')
+      .set('Cookie', `access_token=${token}`);
+
+    expect(response.status).toBe(422);
+  });
+
   it('lists and updates a complaint', async () => {
     const complaint = await Complaint.create({
       user: user.id,

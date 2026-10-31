@@ -10,6 +10,7 @@ import {
 } from '@/services/api/endpoints';
 import { ComplaintMap, complaintStatusColors, LocationPicker } from '@/components/ComplaintMap';
 import { getComplaintCoordinates, getComplaintLocationAddress } from '@/utils/complaintLocation';
+import PublicFeed from '@/pages/PublicFeed';
 
 const field =
   'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100';
@@ -160,6 +161,7 @@ function Shell({ children }) {
             CivicConnect
           </Link>
           <Link to="/complaints">Complaints</Link>
+          <Link to="/public-feed">Public feed</Link>
           <Link to="/complaints/new">Report issue</Link>
           <Link to="/complaints/map">Map view</Link>
           <Link to="/notifications">Notifications</Link>
@@ -790,6 +792,12 @@ export default function App({ mode }) {
     return <AuthScreen mode={mode} />;
   if (mode === 'new-complaint') return <NewComplaint />;
   if (mode === 'complaints') return <ComplaintsList />;
+  if (mode === 'public-feed')
+    return (
+      <Shell>
+        <PublicFeed />
+      </Shell>
+    );
   if (mode === 'complaint-details') return <ComplaintDetails />;
   if (mode === 'complaints-map') return <ComplaintsMapView />;
   if (mode === 'notifications') return <Notifications />;

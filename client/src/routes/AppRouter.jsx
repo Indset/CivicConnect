@@ -51,6 +51,14 @@ export default function AppRouter() {
         }
       />
       <Route
+        path="/public-feed"
+        element={
+          <ProtectedRoute>
+            <App mode="public-feed" />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/complaints/new"
         element={
           <ProtectedRoute>

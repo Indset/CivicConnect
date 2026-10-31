@@ -60,6 +60,8 @@ const complaintSchema = new mongoose.Schema({
     type: [imageSchema], default: [],
     validate: { validator: (images) => images.length <= 4, message: 'A complaint can contain at most 4 images' },
   },
+  upvotes: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], default: [] },
+  upvoteCount: { type: Number, min: 0, default: 0 },
   priority: { type: String, enum: ['low', 'medium', 'high', 'urgent'], default: 'medium', index: true },
   status: {
     type: String,
@@ -81,6 +83,8 @@ complaintSchema.pre('validate', function validateCoordinates(next) {
 
 complaintSchema.index({ user: 1, createdAt: -1 });
 complaintSchema.index({ category: 1, status: 1, createdAt: -1 });
+complaintSchema.index({ category: 1, status: 1, upvoteCount: -1, createdAt: -1 });
+complaintSchema.index({ upvoteCount: -1, createdAt: -1 });
 complaintSchema.index({ assignedTo: 1, status: 1, priority: -1 }, { sparse: true });
 complaintSchema.index({ status: 1, priority: -1, createdAt: -1 });
 complaintSchema.index({ latitude: 1, longitude: 1 }, { sparse: true });
