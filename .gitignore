@@ -10,3 +10,4 @@ logs/
 *.log
 # Local JDK
  /oracleJdk-27/
+ Add-Content .gitignore "`noracleJdk-*/"

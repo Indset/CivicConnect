@@ -65,6 +65,41 @@ describe("AI category suggestions", () => {
     });
   });
 
+  it("matches keywords across all seeded categories", async () => {
+    const examples = [
+      ["Roads & Potholes", "Pothole on road", "The road surface is broken."],
+      ["Garbage & Sanitation", "Trash bin overflowing", "Garbage collection is missed."],
+      ["Sewage & Drainage", "Sewage drain blockage", "The blocked drain is overflowing."],
+      ["Water Supply", "Water supply interruption", "No water is coming from the tap."],
+      ["Street Lights & Electricity", "Streetlight power outage", "The street lamp is broken."],
+      ["Public Transport & Traffic", "Bus and traffic congestion", "The bus route is delayed."],
+      ["Parks & Public Spaces", "Playground bench in public park", "The park needs repairs."],
+      ["Noise Pollution", "Loud music and honking", "Noise continues at night."],
+      ["Air & Environment", "Smog and smoke pollution", "Dust is affecting the air."],
+      ["Stray Animals", "Stray dogs in the neighborhood", "The animals are biting people."],
+      [
+        "Encroachment & Illegal Construction",
+        "Illegal construction on public footpath",
+        "New building work is blocking the way.",
+      ],
+      ["Other", "Miscellaneous unlisted issue", "This is a general civic problem."],
+    ];
+    await Category.deleteMany({});
+    const categories = await Category.create(
+      examples.map(([name]) => ({ name })),
+    );
+    const categoriesByName = new Map(
+      categories.map((category) => [category.name, category]),
+    );
+
+    for (const [expectedName, title, description] of examples) {
+      expect(
+        suggestCategoryWithKeywords(categories, title, description).categoryName,
+      ).toBe(expectedName);
+      expect(categoriesByName.has(expectedName)).toBe(true);
+    }
+  });
+
   it("rejects model suggestions that do not exactly match a database category", () => {
     expect(
       validateModelSuggestion(

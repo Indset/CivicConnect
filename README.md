@@ -183,6 +183,20 @@ npm run seed:awareness
 The seed command uses the configured `MONGO_URI`, preserves existing records with
 the same titles, and requires an active administrator to own the seeded content.
 
+## Complaint categories
+
+Populate or reactivate the standard complaint categories with:
+
+```bash
+npm --prefix server run seed:categories
+```
+
+Run this command once against the local database and once against the production
+database, making sure `MONGO_URI` points to the intended database each time.
+The seeder upserts categories by name, preserves existing records, and
+reactivates seeded categories. `npm --prefix server run seed:all` runs both the
+category and awareness seeders.
+
 ---
 
 ## Production Checklist

@@ -4,33 +4,31 @@ import logger from "../../../utils/logger.js";
 import { ApiError } from "../../../utils/ApiError.js";
 
 const keywordGroups = [
-  [
-    "road",
-    "roads",
-    "street",
-    "pothole",
-    "sidewalk",
-    "pavement",
-    "traffic",
-    "sign",
-    "signal",
-    "bridge",
-  ],
-  ["water", "drain", "drainage", "sewer", "sewage", "pipe", "flood", "leak"],
-  ["garbage", "waste", "trash", "rubbish", "litter", "sanitation", "cleaning"],
+  ["road", "roads", "street", "streets", "pothole", "potholes", "sidewalk", "pavement", "bridge", "crack"],
+  ["garbage", "waste", "trash", "rubbish", "litter", "sanitation", "cleaning", "bin", "dumping"],
+  ["sewage", "sewer", "drain", "drainage", "overflow", "clog", "blockage", "manhole"],
+  ["water", "supply", "tap", "pipe", "leak", "leakage", "quality", "interruption"],
   [
     "electricity",
     "electric",
     "power",
     "streetlight",
     "streetlights",
+    "street",
+    "light",
+    "lights",
     "lighting",
     "lamp",
     "wire",
+    "outage",
   ],
-  ["park", "parks", "garden", "playground", "tree", "trees", "bench"],
-  ["bus", "transport", "transit", "parking", "vehicle"],
-  ["building", "construction", "property", "encroachment"],
+  ["bus", "transport", "transit", "traffic", "signal", "congestion", "vehicle", "crossing"],
+  ["park", "parks", "garden", "playground", "tree", "trees", "bench", "public", "space"],
+  ["noise", "loud", "honking", "music", "sound", "decibel"],
+  ["air", "environment", "pollution", "smoke", "dust", "emissions", "smog", "burning"],
+  ["stray", "animal", "animals", "dog", "dogs", "cattle", "monkey", "bite"],
+  ["building", "construction", "illegal", "property", "encroachment", "unauthorized", "blocked"],
+  ["other", "miscellaneous", "general", "uncategorized", "different", "unlisted"],
 ];
 
 const tokenize = (value) => value.toLowerCase().match(/[a-z0-9]+/g) ?? [];

@@ -7,6 +7,8 @@ import env from './config/env.js';
 import { ApiError } from './utils/ApiError.js';
 import { errorHandler, notFoundHandler } from './utils/errorHandler.js';
 import logger, { httpLogger } from './utils/logger.js';
+import dns from "node:dns";
+   dns.setServers(["8.8.8.8", "1.1.1.1"]);
 import {
   complaintRateLimiter,
   compressResponse,
